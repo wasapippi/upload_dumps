@@ -1,0 +1,49 @@
+{
+  "name": "surfboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "next build --turbopack",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@mantine/core": "^8.2.5",
+    "@mantine/hooks": "^8.2.5",
+    "@mantine/notifications": "^8.2.7",
+    "@mantine/spotlight": "^8.2.7",
+    "@prisma/client": "^5.5.2",
+    "@tabler/icons-react": "^3.34.1",
+    "@tanstack/react-virtual": "^3.13.12",
+    "@tiptap/extension-collaboration": "^2.6.6",
+    "@tiptap/extension-collaboration-cursor": "^2.6.6",
+    "@tiptap/extension-link": "^2.6.6",
+    "@tiptap/react": "^2.6.6",
+    "@tiptap/starter-kit": "^2.6.6",
+    "dayjs": "^1.11.13",
+    "framer-motion": "^12.23.12",
+    "marked": "^12.0.2",
+    "next": "15.5.0",
+    "next-auth": "^5.0.0-beta.29",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "turndown": "^7.2.0",
+    "y-protocols": "^1.0.6",
+    "y-websocket": "^2.0.4",
+    "yjs": "^13.6.20"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.0",
+    "prisma": "^5.5.2",
+    "typescript": "^5"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  }
+}

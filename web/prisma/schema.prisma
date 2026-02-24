@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Vendor {
+  id             Int        @id @default(autoincrement())
+  name           String
+  normalizedName String     @unique
+  platforms      Platform[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+}
+
+model Platform {
+  id             Int                @id @default(autoincrement())
+  name           String
+  normalizedName String             @unique
+  vendorId       Int
+  vendor         Vendor             @relation(fields: [vendorId], references: [id])
+  hostTypeLinks  HostTypePlatform[]
+  commands       Command[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+}
+
+model Category {
+  id              Int        @id @default(autoincrement())
+  name            String
+  normalizedName  String     @unique
+  groupOrderIndex Int        @default(0)
+  hostTypes       HostType[]
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+}
+
+model HostType {
+  id              Int                @id @default(autoincrement())
+  name            String
+  normalizedName  String             @unique
+  categoryId      Int
+  groupOrderIndex Int                @default(0)
+  category        Category           @relation(fields: [categoryId], references: [id])
+  platforms       HostTypePlatform[]
+  commands        Command[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+}
+
+model HostTypePlatform {
+  hostTypeId Int
+  platformId Int
+  hostType   HostType @relation(fields: [hostTypeId], references: [id])
+  platform   Platform @relation(fields: [platformId], references: [id])
+
+  @@id([hostTypeId, platformId])
+}
+
+model Tag {
+  id             Int          @id @default(autoincrement())
+  name           String
+  normalizedName String       @unique
+  commandTags    CommandTag[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Command {
+  id           Int              @id @default(autoincrement())
+  title        String
+  description  String?
+  commandText  String
+  hostTypeId   Int
+  platformId   Int?
+  danger       Boolean          @default(false)
+  orderIndex   Int              @default(0)
+  createdBy    String
+  updatedBy    String
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  deletedAt    DateTime?
+
+  hostType  HostType         @relation(fields: [hostTypeId], references: [id])
+  platform  Platform?        @relation(fields: [platformId], references: [id])
+  variables CommandVariable[]
+  tags      CommandTag[]
+
+  @@index([hostTypeId, platformId, orderIndex])
+}
+
+model CommandVariable {
+  id           Int      @id @default(autoincrement())
+  commandId    Int
+  name         String
+  label        String
+  required     Boolean  @default(false)
+  defaultValue String?
+  placeholder  String?
+  regex        String?
+  command      Command  @relation(fields: [commandId], references: [id], onDelete: Cascade)
+
+  @@index([commandId])
+}
+
+model CommandTag {
+  commandId Int
+  tagId     Int
+  command   Command @relation(fields: [commandId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id])
+
+  @@id([commandId, tagId])
+}
