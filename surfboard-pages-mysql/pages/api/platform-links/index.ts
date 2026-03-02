@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { execute, query } from "@/lib/db";
 import { normalizeName } from "@/lib/normalize";
+import { resolveActorName } from "@/lib/auditActor";
 
 type Row = {
   id: number;
@@ -142,6 +143,8 @@ const listLinks = async (req: NextApiRequest) => {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const actorName = resolveActorName(req);
+
   if (req.method === "GET") {
     return res.status(200).json(await listLinks(req));
   }
@@ -163,7 +166,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const result = await execute(
       `INSERT INTO PlatformLink
        (title, urlTemplate, commentTemplate, platformId, vendorId, hostTypeId, visibility, ownerUserId, deviceBindingMode, orderIndex, createdBy, updatedBy, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, 'PUBLIC', NULL, ?, ?, 'Guest', 'Guest', NOW(3), NOW(3))`,
+       VALUES (?, ?, ?, ?, ?, ?, 'PUBLIC', NULL, ?, ?, ?, ?, NOW(3), NOW(3))`,
       [
         String(body.title || "").trim(),
         String(body.urlTemplate || "").trim(),
@@ -172,7 +175,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         vendorId,
         hostTypeId,
         body.deviceBindingMode === "EXCLUDE_FROM_DEVICE" ? "EXCLUDE_FROM_DEVICE" : "INCLUDE_IN_DEVICE",
-        Number(maxRows[0]?.maxOrder ?? 0) + 1
+        Number(maxRows[0]?.maxOrder ?? 0) + 1,
+        actorName,
+        actorName
       ]
     );
 

@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { execute, query } from "@/lib/db";
 import { normalizeName } from "@/lib/normalize";
+import { resolveActorName } from "@/lib/auditActor";
 
 const ensureTags = async (names: string[]) => {
   const uniq = Array.from(
@@ -32,6 +33,7 @@ const ensureTags = async (names: string[]) => {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const actorName = resolveActorName(req);
   const id = Number(req.query.id);
   if (!id) return res.status(400).json({ error: "invalid id" });
 
@@ -39,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const body = req.body || {};
     await execute(
       `UPDATE PlatformLink
-       SET title=?, urlTemplate=?, commentTemplate=?, platformId=?, vendorId=?, hostTypeId=?, deviceBindingMode=?, updatedBy='Guest', updatedAt=NOW(3)
+       SET title=?, urlTemplate=?, commentTemplate=?, platformId=?, vendorId=?, hostTypeId=?, deviceBindingMode=?, updatedBy=?, updatedAt=NOW(3)
        WHERE id = ? AND deletedAt IS NULL`,
       [
         String(body.title || "").trim(),
@@ -49,6 +51,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         body.vendorId ? Number(body.vendorId) : null,
         Number(body.hostTypeId || 0) || null,
         body.deviceBindingMode === "EXCLUDE_FROM_DEVICE" ? "EXCLUDE_FROM_DEVICE" : "INCLUDE_IN_DEVICE",
+        actorName,
         id
       ]
     );

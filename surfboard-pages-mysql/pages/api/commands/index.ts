@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { execute, query } from "@/lib/db";
 import { normalizeName } from "@/lib/normalize";
 import type { Command } from "@/types/domain";
+import { resolveActorName } from "@/lib/auditActor";
 
 type CommandRow = {
   id: number;
@@ -175,6 +176,8 @@ const listCommands = async (req: NextApiRequest) => {
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const actorName = resolveActorName(req);
+
   if (req.method === "GET") {
     const data = await listCommands(req);
     return res.status(200).json(data);
@@ -199,7 +202,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const result = await execute(
       `INSERT INTO Command
        (title, description, commandText, hostTypeId, platformId, vendorId, visibility, ownerUserId, deviceBindingMode, danger, orderIndex, createdBy, updatedBy, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, 'PUBLIC', NULL, ?, ?, ?, 'Guest', 'Guest', NOW(3), NOW(3))`,
+       VALUES (?, ?, ?, ?, ?, ?, 'PUBLIC', NULL, ?, ?, ?, ?, ?, NOW(3), NOW(3))`,
       [
         String(body.title || "").trim(),
         body.description ? String(body.description) : null,
@@ -209,7 +212,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         vendorId,
         body.deviceBindingMode === "EXCLUDE_FROM_DEVICE" ? "EXCLUDE_FROM_DEVICE" : "INCLUDE_IN_DEVICE",
         body.danger ? 1 : 0,
-        orderIndex
+        orderIndex,
+        actorName,
+        actorName
       ]
     );
 
