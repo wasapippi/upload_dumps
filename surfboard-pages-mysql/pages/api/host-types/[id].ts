@@ -7,6 +7,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!id) return res.status(400).json({ error: "invalid id" });
 
   if (req.method === "PUT") {
+    if (req.body?.delete === true) {
+      await execute("DELETE FROM HostType WHERE id = ?", [id]);
+      return res.status(200).json({ ok: true });
+    }
+
     const name = String(req.body?.name || "").trim();
     const categoryId = Number(req.body?.categoryId || 0);
     if (!name || !categoryId) return res.status(400).json({ error: "invalid payload" });

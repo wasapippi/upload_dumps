@@ -192,7 +192,11 @@ export default function TaxonomyPage() {
     else if (mode === "platform") url = `/api/platforms/platforms/${editingId}`;
     else url = `/api/platforms/vendors/${editingId}`;
 
-    let res = await fetch(url, { method: "DELETE" });
+    let res = await fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ delete: true })
+    });
     if (!res.ok && res.status === 409) {
       try {
         const body = await res.json();
@@ -204,7 +208,11 @@ export default function TaxonomyPage() {
           `関連データも削除します。\n\n${details}\n\nこのまま削除しますか？`
         );
         if (!confirmCascade) return;
-        res = await fetch(`${url}?cascade=1`, { method: "DELETE" });
+        res = await fetch(`${url}?cascade=1`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ delete: true, cascade: true })
+        });
       } catch {
         // no-op
       }

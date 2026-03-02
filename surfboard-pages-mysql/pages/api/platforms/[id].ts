@@ -7,6 +7,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!id) return res.status(400).json({ error: "invalid id" });
 
   if (req.method === "PUT") {
+    if (req.body?.delete === true) {
+      await execute("DELETE FROM Platform WHERE id = ?", [id]);
+      return res.status(200).json({ ok: true });
+    }
+
     const name = String(req.body?.name || "").trim();
     const vendorId = Number(req.body?.vendorId || 0);
     if (!name || !vendorId) return res.status(400).json({ error: "invalid payload" });
