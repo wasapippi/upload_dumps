@@ -1,0 +1,42 @@
+services:
+  app:
+    image: node:24.5-alpine
+    container_name: surfboard_pages_app
+    working_dir: /app
+    tty: true
+    ports:
+      - "${APP_PORT:-3001}:3001"
+    volumes:
+      - ./:/app
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${MYSQL_USER:-surfboard}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-surfboard}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-surfboard}
+      NODE_ENV: development
+    command: sh -lc "npm install && npm run dev"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  mysql:
+    image: mysql:8.3.0
+    container_name: surfboard_pages_mysql
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+    ports:
+      - "${MYSQL_HOST_PORT:-3307}:3306"
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-surfboard}
+      MYSQL_USER: ${MYSQL_USER:-surfboard}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-surfboard}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    volumes:
+      - ./db/mysql-8.3:/var/lib/mysql
+      - ./sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10

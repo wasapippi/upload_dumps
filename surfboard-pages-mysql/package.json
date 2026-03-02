@@ -1,0 +1,27 @@
+{
+  "name": "surfboard-pages-mysql",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0 -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001"
+  },
+  "dependencies": {
+    "@mantine/core": "^8.2.5",
+    "@mantine/hooks": "^8.2.5",
+    "@mantine/notifications": "^8.2.7",
+    "@tabler/icons-react": "^3.34.1",
+    "dayjs": "^1.11.13",
+    "mysql": "^2.18.1",
+    "next": "15.5.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@types/mysql": "^2.15.27",
+    "@types/node": "^20.19.17",
+    "@types/react": "^19.1.16",
+    "typescript": "^5.9.2"
+  }
+}
