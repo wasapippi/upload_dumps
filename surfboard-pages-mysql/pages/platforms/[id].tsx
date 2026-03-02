@@ -116,9 +116,9 @@ export default function PlatformDetailPage() {
 
   const fetchMasters = useCallback(async () => {
     const [platformRes, hostTypeRes, categoryRes] = await Promise.all([
-      fetch("/api/platforms"),
-      fetch("/api/host-types"),
-      fetch("/api/categories")
+      fetch("/api/platforms/platforms"),
+      fetch("/api/platforms/host-types"),
+      fetch("/api/platforms/categories")
     ]);
     if (platformRes.ok) setPlatforms(await platformRes.json());
     if (hostTypeRes.ok) setHostTypes(await hostTypeRes.json());
@@ -134,7 +134,7 @@ export default function PlatformDetailPage() {
       params.set("tagIds", selectedCommandTagIds.join(","));
       params.set("tagMode", commandTagMode);
     }
-    const res = await fetch(`/api/commands?${params.toString()}`);
+    const res = await fetch(`/api/platforms/commands?${params.toString()}`);
     if (!res.ok) return;
     const data = await res.json();
     setCommands(Array.isArray(data) ? data : data.items ?? []);
@@ -145,7 +145,7 @@ export default function PlatformDetailPage() {
     const params = new URLSearchParams();
     params.set("platformId", String(platformId));
     params.set("hostTypeId", hostTypeId);
-    const res = await fetch(`/api/commands/tags?${params.toString()}`);
+    const res = await fetch(`/api/platforms/commands/tags?${params.toString()}`);
     if (!res.ok) return;
     const tags = (await res.json()) as Tag[];
     setAvailableCommandTags(tags);
@@ -164,7 +164,7 @@ export default function PlatformDetailPage() {
     const params = new URLSearchParams();
     params.set("platformId", String(platformId));
     params.set("hostTypeId", hostTypeId);
-    const res = await fetch(`/api/platform-links/tags?${params.toString()}`);
+    const res = await fetch(`/api/platforms/platform-links/tags?${params.toString()}`);
     if (!res.ok) return;
     const tags = (await res.json()) as Tag[];
     setAvailableLinkTags(tags);
@@ -188,7 +188,7 @@ export default function PlatformDetailPage() {
       params.set("tagMode", linkTagMode);
     }
     if (linkHostName.trim()) params.set("hostName", linkHostName.trim());
-    const res = await fetch(`/api/platform-links?${params.toString()}`);
+    const res = await fetch(`/api/platforms/platform-links?${params.toString()}`);
     if (!res.ok) return;
     setLinks(await res.json());
   }, [hostTypeId, linkHostName, linkTagMode, platformId, selectedLinkTagIds]);
@@ -300,7 +300,7 @@ export default function PlatformDetailPage() {
     };
 
     const res = await fetch(
-      editingLink ? `/api/platform-links/${editingLink.id}` : "/api/platform-links",
+      editingLink ? `/api/platforms/platform-links/${editingLink.id}` : "/api/platforms/platform-links",
       {
         method: editingLink ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -339,7 +339,7 @@ export default function PlatformDetailPage() {
       const params = new URLSearchParams();
       if (tagInput.trim()) params.set("q", tagInput.trim());
       params.set("scope", "link");
-      const res = await fetch(`/api/tags/suggest?${params.toString()}`);
+      const res = await fetch(`/api/platforms/tags/suggest?${params.toString()}`);
       if (!res.ok || !active) return;
       const data = (await res.json()) as Tag[];
       setTagSuggestions(Array.isArray(data) ? data : []);
@@ -353,7 +353,18 @@ export default function PlatformDetailPage() {
   const deleteLink = async (link: PlatformLink) => {
     const ok = window.confirm(`「${link.title}」を削除しますか？`);
     if (!ok) return;
-    const res = await fetch(`/api/platform-links/${link.id}`, { method: "DELETE" });
+    let res = await fetch(`/api/platforms/platform-links/${link.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ delete: true })
+    });
+    if (res.status === 404) {
+      res = await fetch(`/api/platform-links/${link.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ delete: true })
+      });
+    }
     if (!res.ok) return;
     await fetchLinks();
   };
@@ -370,7 +381,7 @@ export default function PlatformDetailPage() {
     const reordered = [...links];
     const [target] = reordered.splice(index, 1);
     reordered.splice(targetIndex, 0, target);
-    const res = await fetch("/api/platform-links/reorder", {
+    const res = await fetch("/api/platforms/platform-links/reorder", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids: reordered.map((item) => item.id) })

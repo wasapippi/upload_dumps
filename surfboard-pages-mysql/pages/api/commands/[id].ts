@@ -76,6 +76,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === "PUT") {
     const body = req.body || {};
+    if (body.delete === true) {
+      await execute("UPDATE Command SET deletedAt = NOW(3), updatedAt = NOW(3), updatedBy = ? WHERE id = ?", [actorName, id]);
+      return res.status(200).json({ ok: true });
+    }
     const hostTypeId = Number(body.hostTypeId || 0) || null;
     if (!hostTypeId || !String(body.title || "").trim() || !String(body.commandText || "").trim()) {
       return res.status(400).json({ error: "必須項目が不足しています。" });

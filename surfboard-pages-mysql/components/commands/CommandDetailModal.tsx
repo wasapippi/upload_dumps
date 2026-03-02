@@ -79,9 +79,9 @@ export const CommandDetailModal = ({
 
   const loadMasters = async () => {
     const [hostTypeRes, platformRes, vendorRes] = await Promise.all([
-      fetch("/api/host-types"),
-      fetch("/api/platforms"),
-      fetch("/api/vendors")
+      fetch("/api/platforms/host-types"),
+      fetch("/api/platforms/platforms"),
+      fetch("/api/platforms/vendors")
     ]);
     if (hostTypeRes.ok) setHostTypes(await hostTypeRes.json());
     if (platformRes.ok) setPlatforms(await platformRes.json());
@@ -216,7 +216,7 @@ export const CommandDetailModal = ({
         if (hostTypeId) params.set("hostTypeId", hostTypeId);
         if (scopeMode === "platform" && platformId) params.set("platformId", platformId);
       }
-      const response = await fetch(`/api/commands/tags?${params.toString()}`);
+      const response = await fetch(`/api/platforms/commands/tags?${params.toString()}`);
       if (!response.ok || !active) return;
       setTagSuggestions(await response.json());
     }, 200);
@@ -267,7 +267,7 @@ export const CommandDetailModal = ({
       return;
     }
 
-    const response = await fetch(`/api/commands/${command.id}`, {
+    const response = await fetch(`/api/platforms/commands/${command.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -311,7 +311,18 @@ export const CommandDetailModal = ({
     const ok = window.confirm(`「${command.title}」を削除しますか？`);
     if (!ok) return;
 
-    const response = await fetch(`/api/commands/${command.id}`, { method: "DELETE" });
+    let response = await fetch(`/api/platforms/commands/${command.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ delete: true })
+    });
+    if (response.status === 404) {
+      response = await fetch(`/api/commands/${command.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ delete: true })
+      });
+    }
     if (!response.ok) {
       setSaveError("削除に失敗しました。");
       return;

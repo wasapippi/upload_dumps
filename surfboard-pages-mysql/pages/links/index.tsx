@@ -48,10 +48,10 @@ export default function LinksPage() {
 
   const fetchMasters = useCallback(async () => {
     const [categoryRes, hostTypeRes, platformRes, vendorRes] = await Promise.all([
-      fetch("/api/categories"),
-      fetch("/api/host-types"),
-      fetch("/api/platforms"),
-      fetch("/api/vendors")
+      fetch("/api/platforms/categories"),
+      fetch("/api/platforms/host-types"),
+      fetch("/api/platforms/platforms"),
+      fetch("/api/platforms/vendors")
     ]);
     if (categoryRes.ok) setCategories(await categoryRes.json());
     if (hostTypeRes.ok) setHostTypes(await hostTypeRes.json());
@@ -106,7 +106,7 @@ export default function LinksPage() {
       params.set("tagIds", selectedTagIds.join(","));
       params.set("tagMode", tagMode);
     }
-    const res = await fetch(`/api/platform-links?${params.toString()}`);
+    const res = await fetch(`/api/platforms/platform-links?${params.toString()}`);
     if (!res.ok) return;
     let items = (await res.json()) as PlatformLink[];
     if (categoryId && !hostTypeId) {
@@ -125,7 +125,7 @@ export default function LinksPage() {
       if (hostTypeId) params.set("hostTypeId", hostTypeId);
       if (platformId) params.set("platformId", platformId);
     }
-    const res = await fetch(`/api/platform-links/tags?${params.toString()}`);
+    const res = await fetch(`/api/platforms/platform-links/tags?${params.toString()}`);
     if (!res.ok) return;
     const tags = (await res.json()) as Tag[];
     setAvailableTags(tags);
@@ -262,7 +262,7 @@ export default function LinksPage() {
       const params = new URLSearchParams();
       params.set("scope", "link");
       if (tagInput.trim()) params.set("q", tagInput.trim());
-      const res = await fetch(`/api/tags/suggest?${params.toString()}`);
+      const res = await fetch(`/api/platforms/tags/suggest?${params.toString()}`);
       if (!res.ok || !active) return;
       const data = (await res.json()) as Tag[];
       setTagSuggestions(Array.isArray(data) ? data : []);
@@ -299,7 +299,7 @@ export default function LinksPage() {
       deviceBindingMode,
       updatedAt: editingLink?.updatedAt
     };
-    const res = await fetch(editingLink ? `/api/platform-links/${editingLink.id}` : "/api/platform-links", {
+    const res = await fetch(editingLink ? `/api/platforms/platform-links/${editingLink.id}` : "/api/platforms/platform-links", {
       method: editingLink ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
@@ -317,7 +317,18 @@ export default function LinksPage() {
     if (!editingLink) return;
     const ok = window.confirm(`「${editingLink.title}」を削除しますか？`);
     if (!ok) return;
-    const res = await fetch(`/api/platform-links/${editingLink.id}`, { method: "DELETE" });
+    let res = await fetch(`/api/platforms/platform-links/${editingLink.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ delete: true })
+    });
+    if (res.status === 404) {
+      res = await fetch(`/api/platform-links/${editingLink.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ delete: true })
+      });
+    }
     if (!res.ok) return;
     setOpenModal(false);
     await fetchLinks();
