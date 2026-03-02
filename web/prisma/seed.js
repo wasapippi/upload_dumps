@@ -12,8 +12,10 @@ const normalizeName = (value) => {
 
 async function main() {
   await prisma.commandTag.deleteMany();
+  await prisma.platformLinkTag.deleteMany();
   await prisma.commandVariable.deleteMany();
   await prisma.command.deleteMany();
+  await prisma.platformLink.deleteMany();
   await prisma.hostTypePlatform.deleteMany();
   await prisma.tag.deleteMany();
   await prisma.hostType.deleteMany();
@@ -142,7 +144,7 @@ async function main() {
   const tagNames = ["bgp", "ospf", "optics", "logs", "security", "isis", "mpls"];
   const tags = await Promise.all(
     tagNames.map((name) =>
-      prisma.tag.create({ data: { name, normalizedName: normalizeName(name) } })
+      prisma.tag.create({ data: { name, normalizedName: normalizeName(name), kind: "COMMAND" } })
     )
   );
 

@@ -73,10 +73,11 @@ CREATE TABLE IF NOT EXISTS `Tag` (
   `id` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(191) NOT NULL,
   `normalizedName` VARCHAR(191) NOT NULL,
+  `kind` VARCHAR(16) NOT NULL DEFAULT 'COMMAND',
   `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `Tag_normalizedName_key` (`normalizedName`)
+  UNIQUE KEY `Tag_normalizedName_kind_key` (`normalizedName`, `kind`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `Command` (
@@ -86,6 +87,10 @@ CREATE TABLE IF NOT EXISTS `Command` (
   `commandText` TEXT NOT NULL,
   `hostTypeId` INT NOT NULL,
   `platformId` INT NULL,
+  `vendorId` INT NULL,
+  `visibility` VARCHAR(20) NOT NULL DEFAULT 'PUBLIC',
+  `ownerUserId` VARCHAR(191) NULL,
+  `deviceBindingMode` VARCHAR(32) NOT NULL DEFAULT 'INCLUDE_IN_DEVICE',
   `danger` BOOLEAN NOT NULL DEFAULT FALSE,
   `orderIndex` INT NOT NULL DEFAULT 0,
   `createdBy` VARCHAR(191) NOT NULL,
@@ -94,13 +99,49 @@ CREATE TABLE IF NOT EXISTS `Command` (
   `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   `deletedAt` DATETIME(3) NULL,
   PRIMARY KEY (`id`),
-  KEY `Command_hostTypeId_platformId_orderIndex_idx` (`hostTypeId`, `platformId`, `orderIndex`),
+  KEY `Command_hostTypeId_platformId_vendorId_orderIndex_idx` (`hostTypeId`, `platformId`, `vendorId`, `orderIndex`),
+  KEY `Command_visibility_ownerUserId_idx` (`visibility`, `ownerUserId`),
   KEY `Command_platformId_idx` (`platformId`),
+  KEY `Command_vendorId_idx` (`vendorId`),
   CONSTRAINT `Command_hostTypeId_fkey`
     FOREIGN KEY (`hostTypeId`) REFERENCES `HostType`(`id`)
     ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT `Command_platformId_fkey`
     FOREIGN KEY (`platformId`) REFERENCES `Platform`(`id`)
+    ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `Command_vendorId_fkey`
+    FOREIGN KEY (`vendorId`) REFERENCES `Vendor`(`id`)
+    ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `PlatformLink` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `title` VARCHAR(191) NOT NULL,
+  `urlTemplate` TEXT NOT NULL,
+  `commentTemplate` TEXT NULL,
+  `platformId` INT NULL,
+  `vendorId` INT NULL,
+  `hostTypeId` INT NOT NULL,
+  `visibility` VARCHAR(20) NOT NULL DEFAULT 'PUBLIC',
+  `ownerUserId` VARCHAR(191) NULL,
+  `deviceBindingMode` VARCHAR(32) NOT NULL DEFAULT 'INCLUDE_IN_DEVICE',
+  `orderIndex` INT NOT NULL DEFAULT 0,
+  `createdBy` VARCHAR(191) NOT NULL,
+  `updatedBy` VARCHAR(191) NOT NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  `deletedAt` DATETIME(3) NULL,
+  PRIMARY KEY (`id`),
+  KEY `PlatformLink_platformId_vendorId_hostTypeId_orderIndex_idx` (`platformId`, `vendorId`, `hostTypeId`, `orderIndex`),
+  KEY `PlatformLink_visibility_ownerUserId_idx` (`visibility`, `ownerUserId`),
+  CONSTRAINT `PlatformLink_platformId_fkey`
+    FOREIGN KEY (`platformId`) REFERENCES `Platform`(`id`)
+    ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `PlatformLink_vendorId_fkey`
+    FOREIGN KEY (`vendorId`) REFERENCES `Vendor`(`id`)
+    ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT `PlatformLink_hostTypeId_fkey`
+    FOREIGN KEY (`hostTypeId`) REFERENCES `HostType`(`id`)
     ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
@@ -129,6 +170,19 @@ CREATE TABLE IF NOT EXISTS `CommandTag` (
     FOREIGN KEY (`commandId`) REFERENCES `Command`(`id`)
     ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `CommandTag_tagId_fkey`
+    FOREIGN KEY (`tagId`) REFERENCES `Tag`(`id`)
+    ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `PlatformLinkTag` (
+  `platformLinkId` INT NOT NULL,
+  `tagId` INT NOT NULL,
+  PRIMARY KEY (`platformLinkId`, `tagId`),
+  KEY `PlatformLinkTag_tagId_idx` (`tagId`),
+  CONSTRAINT `PlatformLinkTag_platformLinkId_fkey`
+    FOREIGN KEY (`platformLinkId`) REFERENCES `PlatformLink`(`id`)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `PlatformLinkTag_tagId_fkey`
     FOREIGN KEY (`tagId`) REFERENCES `Tag`(`id`)
     ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

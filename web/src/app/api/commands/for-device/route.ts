@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { resolveActorName } from "@/lib/auditActor";
 
 const parseNumber = (value: string | null) => {
   if (!value) return null;
@@ -9,8 +10,13 @@ const parseNumber = (value: string | null) => {
 
 export const GET = async (request: NextRequest) => {
   const { searchParams } = request.nextUrl;
+  const actorName = resolveActorName(request);
   const hostTypeId = parseNumber(searchParams.get("hostTypeId"));
   const platformId = parseNumber(searchParams.get("platformId"));
+  const selectedPlatform = platformId
+    ? await prisma.platform.findUnique({ where: { id: platformId }, select: { vendorId: true } })
+    : null;
+  const selectedVendorId = selectedPlatform?.vendorId ?? null;
 
   if (!hostTypeId) {
     return NextResponse.json({ error: "hostTypeId required" }, { status: 400 });
@@ -19,10 +25,26 @@ export const GET = async (request: NextRequest) => {
   const commands = await prisma.command.findMany({
     where: {
       deletedAt: null,
-      hostTypeId,
-      AND: platformId
-        ? [{ OR: [{ platformId: null }, { platformId }] }]
-        : undefined
+      deviceBindingMode: "INCLUDE_IN_DEVICE",
+      OR: [
+        { visibility: "PUBLIC" },
+        { visibility: "PRIVATE", ownerUserId: actorName }
+      ],
+      ...(platformId
+        ? {
+            AND: [
+              {
+                OR: [
+                  {
+                    hostTypeId,
+                    OR: [{ platformId: null, vendorId: null }, { platformId }]
+                  },
+                  ...(selectedVendorId ? [{ platformId: null, vendorId: selectedVendorId }] : [])
+                ]
+              }
+            ]
+          }
+        : { hostTypeId })
     },
     include: {
       hostType: {
@@ -31,6 +53,7 @@ export const GET = async (request: NextRequest) => {
         }
       },
       platform: true,
+      vendor: true,
       variables: true,
       tags: { include: { tag: true } }
     },

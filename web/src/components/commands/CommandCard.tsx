@@ -41,6 +41,9 @@ export const CommandCard = ({
               {command.platform ? (
                 <Badge color="gray" variant="light" size="xs">{command.platform.name}</Badge>
               ) : null}
+              {!command.platform && command.vendor ? (
+                <Badge color="cyan" variant="light" size="xs">{command.vendor.name} 共通</Badge>
+              ) : null}
             </Group>
             <Text size="xs" ff="monospace" lineClamp={2}>
               {command.commandText}

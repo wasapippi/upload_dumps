@@ -3,9 +3,11 @@ import { prisma } from "@/lib/prisma";
 
 export const GET = async (request: NextRequest) => {
   const q = request.nextUrl.searchParams.get("q")?.trim();
+  const scope = request.nextUrl.searchParams.get("scope") === "link" ? "LINK" : "COMMAND";
   const normalizedQ = q ? q.normalize("NFKC") : null;
   if (!normalizedQ) {
     const recent = await prisma.tag.findMany({
+      where: { kind: scope },
       orderBy: { name: "asc" },
       take: 20
     });
@@ -14,6 +16,7 @@ export const GET = async (request: NextRequest) => {
 
   const tags = await prisma.tag.findMany({
     where: {
+      kind: scope,
       name: {
         contains: normalizedQ
       }

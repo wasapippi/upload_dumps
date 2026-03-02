@@ -19,7 +19,10 @@ const getTagsByNames = async (names: string[]) => {
   if (cleaned.length === 0) return [];
 
   const existing = await prisma.tag.findMany({
-    where: { normalizedName: { in: cleaned.map((tag) => tag.normalizedName) } }
+    where: {
+      kind: "COMMAND",
+      normalizedName: { in: cleaned.map((tag) => tag.normalizedName) }
+    }
   });
 
   const existingMap = new Map(
@@ -31,12 +34,54 @@ const getTagsByNames = async (names: string[]) => {
   );
 
   if (toCreate.length > 0) {
-    await prisma.tag.createMany({ data: toCreate });
+    await prisma.tag.createMany({
+      data: toCreate.map((tag) => ({ ...tag, kind: "COMMAND" }))
+    });
   }
 
   return prisma.tag.findMany({
-    where: { normalizedName: { in: cleaned.map((tag) => tag.normalizedName) } }
+    where: {
+      kind: "COMMAND",
+      normalizedName: { in: cleaned.map((tag) => tag.normalizedName) }
+    }
   });
+};
+
+const ensureVendorSharedHostType = async () => {
+  const defaultCategoryName = "共通";
+  const defaultCategoryNormalized = normalizeName(defaultCategoryName);
+  let category = await prisma.category.findUnique({
+    where: { normalizedName: defaultCategoryNormalized }
+  });
+  if (!category) {
+    const maxCategory = await prisma.category.aggregate({ _max: { groupOrderIndex: true } });
+    category = await prisma.category.create({
+      data: {
+        name: defaultCategoryName,
+        normalizedName: defaultCategoryNormalized,
+        groupOrderIndex: (maxCategory._max.groupOrderIndex ?? 0) + 1
+      }
+    });
+  }
+
+  const defaultHostTypeName = "共通";
+  const defaultHostTypeNormalized = normalizeName(defaultHostTypeName);
+  let hostType = await prisma.hostType.findUnique({
+    where: { normalizedName: defaultHostTypeNormalized }
+  });
+  if (!hostType) {
+    const maxHostType = await prisma.hostType.aggregate({ _max: { groupOrderIndex: true } });
+    hostType = await prisma.hostType.create({
+      data: {
+        name: defaultHostTypeName,
+        normalizedName: defaultHostTypeNormalized,
+        categoryId: category.id,
+        groupOrderIndex: (maxHostType._max.groupOrderIndex ?? 0) + 1
+      }
+    });
+  }
+
+  return hostType.id;
 };
 
 export const PUT = async (
@@ -56,9 +101,23 @@ export const PUT = async (
   }
 
   const tags = await getTagsByNames(body.tags ?? []);
-  const hostTypeId = Number(body.hostTypeId);
-  const platformId = body.platformId ? Number(body.platformId) : null;
-  if (!Number.isFinite(hostTypeId) || hostTypeId <= 0) {
+  const rawHostTypeId = body.hostTypeId ? Number(body.hostTypeId) : null;
+  const rawPlatformId = body.platformId ? Number(body.platformId) : null;
+  const rawVendorId = body.vendorId ? Number(body.vendorId) : null;
+  const vendorId = Number.isFinite(rawVendorId) && rawVendorId && rawVendorId > 0 ? rawVendorId : null;
+  const hostTypeId =
+    Number.isFinite(rawHostTypeId) && rawHostTypeId && rawHostTypeId > 0
+      ? rawHostTypeId
+      : (vendorId ? await ensureVendorSharedHostType() : null);
+  const platformId =
+    vendorId !== null ? null : (Number.isFinite(rawPlatformId) && rawPlatformId && rawPlatformId > 0 ? rawPlatformId : null);
+  if (vendorId) {
+    const vendor = await prisma.vendor.findUnique({ where: { id: vendorId }, select: { id: true } });
+    if (!vendor) {
+      return NextResponse.json({ error: "invalid vendorId" }, { status: 400 });
+    }
+  }
+  if (!hostTypeId) {
     return NextResponse.json(
       { error: "hostTypeId required" },
       { status: 400 }
@@ -70,7 +129,11 @@ export const PUT = async (
       const result = await tx.command.updateMany({
         where: {
           id,
-          updatedAt
+          updatedAt,
+          OR: [
+            { visibility: "PUBLIC" },
+            { visibility: "PRIVATE", ownerUserId: actorName }
+          ]
         },
         data: {
           title: body.title,
@@ -78,6 +141,21 @@ export const PUT = async (
           commandText: body.commandText,
           hostTypeId,
           platformId,
+          vendorId,
+          ...(body.visibility
+            ? {
+                visibility: body.visibility === "PRIVATE" ? "PRIVATE" : "PUBLIC",
+                ownerUserId: body.visibility === "PRIVATE" ? actorName : null
+              }
+            : {}),
+          ...(body.deviceBindingMode
+            ? {
+                deviceBindingMode:
+                  body.deviceBindingMode === "EXCLUDE_FROM_DEVICE"
+                    ? "EXCLUDE_FROM_DEVICE"
+                    : "INCLUDE_IN_DEVICE"
+              }
+            : {}),
           danger: Boolean(body.danger),
           updatedBy: actorName
         }
@@ -113,6 +191,7 @@ export const PUT = async (
         }
       },
       platform: true,
+      vendor: true,
       variables: true,
       tags: { include: { tag: true } }
     }
@@ -122,9 +201,10 @@ export const PUT = async (
 };
 
 export const GET = async (
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) => {
+  const actorName = resolveActorName(request);
   const id = Number(params.id);
   if (!Number.isFinite(id)) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
@@ -139,12 +219,17 @@ export const GET = async (
         }
       },
       platform: true,
+      vendor: true,
       variables: true,
       tags: { include: { tag: true } }
     }
   });
 
   if (!command) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  if (command.visibility === "PRIVATE" && command.ownerUserId !== actorName) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
@@ -161,13 +246,22 @@ export const DELETE = async (
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 
-  await prisma.command.update({
-    where: { id },
+  const result = await prisma.command.updateMany({
+    where: {
+      id,
+      OR: [
+        { visibility: "PUBLIC" },
+        { visibility: "PRIVATE", ownerUserId: actorName }
+      ]
+    },
     data: {
       deletedAt: new Date(),
       updatedBy: actorName
     }
   });
+  if (result.count === 0) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   return NextResponse.json({ ok: true });
 };

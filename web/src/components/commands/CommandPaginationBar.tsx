@@ -10,7 +10,8 @@ export const CommandPaginationBar = ({
   onPrev,
   onNext,
   onCopyAll,
-  copyDisabled
+  copyDisabled,
+  copyLabel = "表示中をまとめてコピー"
 }: {
   total: number;
   page: number;
@@ -19,6 +20,7 @@ export const CommandPaginationBar = ({
   onNext: () => void;
   onCopyAll: () => void;
   copyDisabled: boolean;
+  copyLabel?: string;
 }) => {
   return (
     <Group justify="flex-end" align="center">
@@ -29,7 +31,7 @@ export const CommandPaginationBar = ({
           disabled={copyDisabled}
           onClick={onCopyAll}
         >
-          表示中をまとめてコピー
+          {copyLabel}
         </Button>
         <Text size="sm" c="dimmed">{total} 件 / {page} / {totalPages} ページ</Text>
         <Button
@@ -54,4 +56,3 @@ export const CommandPaginationBar = ({
     </Group>
   );
 };
-

@@ -14,6 +14,7 @@ import {
   Textarea
 } from "@mantine/core";
 import { Command, HostType, Platform, Tag } from "./types";
+type Vendor = { id: number; name: string };
 
 const badgeStyle = { cursor: "pointer" } as const;
 
@@ -30,6 +31,8 @@ const normalizeTagValues = (values: string[]) =>
 export const CommandEditor = ({
   initialCommand,
   initialContext,
+  lockHostType = false,
+  lockPlatform = false,
   onCreated
 }: {
   initialCommand?: Command | null;
@@ -37,8 +40,12 @@ export const CommandEditor = ({
     categoryId?: string;
     hostTypeId?: string;
     platformId?: string;
+    vendorId?: string;
+    scopeMode?: "common" | "platform" | "vendor";
     tags?: string[];
   };
+  lockHostType?: boolean;
+  lockPlatform?: boolean;
   onCreated?: () => void;
 }) => {
   const [title, setTitle] = useState(initialCommand?.title ?? "");
@@ -55,6 +62,24 @@ export const CommandEditor = ({
   const [platformId, setPlatformId] = useState<string>(
     initialCommand?.platformId ? String(initialCommand.platformId) : (initialContext?.platformId ?? "")
   );
+  const [vendorId, setVendorId] = useState<string>(initialCommand?.vendorId ? String(initialCommand.vendorId) : "");
+  const [scopeMode, setScopeMode] = useState<"common" | "platform" | "vendor">(
+    initialCommand?.vendorId && !initialCommand?.platformId
+      ? "vendor"
+      : initialCommand?.platformId
+        ? "platform"
+        : initialContext?.scopeMode
+          ? initialContext.scopeMode
+          : initialContext?.platformId
+          ? "platform"
+          : "common"
+  );
+  const visibility = "PUBLIC" as const;
+  const [deviceBindingMode, setDeviceBindingMode] = useState<"INCLUDE_IN_DEVICE" | "EXCLUDE_FROM_DEVICE">(
+    initialCommand?.deviceBindingMode === "EXCLUDE_FROM_DEVICE"
+      ? "EXCLUDE_FROM_DEVICE"
+      : "INCLUDE_IN_DEVICE"
+  );
   const [danger, setDanger] = useState(initialCommand?.danger ?? false);
 
   const [tagsLayer1, setTagsLayer1] = useState<string[]>(
@@ -65,19 +90,29 @@ export const CommandEditor = ({
 
   const [hostTypes, setHostTypes] = useState<HostType[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [currentUpdatedAt, setCurrentUpdatedAt] = useState<string | null>(
     initialCommand?.updatedAt ?? null
   );
+  const initialCategoryId = initialContext?.categoryId ?? "";
+  const initialHostTypeId = initialContext?.hostTypeId ?? "";
+  const initialPlatformId = initialContext?.platformId ?? "";
+  const initialVendorId = initialContext?.vendorId ?? "";
+  const initialScopeMode = initialContext?.scopeMode;
+  const initialTagsKey = (initialContext?.tags ?? []).join("\u0001");
+  const initialTags = useMemo(() => initialContext?.tags ?? [], [initialContext?.tags, initialTagsKey]);
 
   const loadMasters = async () => {
-    const [hostTypeRes, platformRes] = await Promise.all([
+    const [hostTypeRes, platformRes, vendorRes] = await Promise.all([
       fetch("/api/host-types"),
-      fetch("/api/platforms")
+      fetch("/api/platforms"),
+      fetch("/api/vendors")
     ]);
     if (hostTypeRes.ok) setHostTypes(await hostTypeRes.json());
     if (platformRes.ok) setPlatforms(await platformRes.json());
+    if (vendorRes.ok) setVendors(await vendorRes.json());
   };
 
   useEffect(() => {
@@ -92,6 +127,19 @@ export const CommandEditor = ({
     setCategoryId(initialCommand.hostType?.category?.id ? String(initialCommand.hostType.category.id) : "");
     setHostTypeId(String(initialCommand.hostTypeId ?? ""));
     setPlatformId(initialCommand.platformId ? String(initialCommand.platformId) : "");
+    setVendorId(initialCommand.vendorId ? String(initialCommand.vendorId) : "");
+    setScopeMode(
+      initialCommand.vendorId && !initialCommand.platformId
+        ? "vendor"
+        : initialCommand.platformId
+          ? "platform"
+          : "common"
+    );
+    setDeviceBindingMode(
+      initialCommand.deviceBindingMode === "EXCLUDE_FROM_DEVICE"
+        ? "EXCLUDE_FROM_DEVICE"
+        : "INCLUDE_IN_DEVICE"
+    );
     setDanger(Boolean(initialCommand.danger));
     setTagsLayer1(initialCommand.tags.map((tagLink) => tagLink.tag.name));
     setCurrentUpdatedAt(initialCommand.updatedAt ?? null);
@@ -99,11 +147,20 @@ export const CommandEditor = ({
 
   useEffect(() => {
     if (initialCommand) return;
-    setCategoryId(initialContext?.categoryId ?? "");
-    setHostTypeId(initialContext?.hostTypeId ?? "");
-    setPlatformId(initialContext?.platformId ?? "");
-    setTagsLayer1(initialContext?.tags ?? []);
-  }, [initialCommand, initialContext]);
+    setCategoryId(initialCategoryId);
+    setHostTypeId(initialHostTypeId);
+    setPlatformId(initialPlatformId);
+    setVendorId(initialVendorId);
+    setScopeMode(
+      initialScopeMode
+        ? initialScopeMode
+        : initialPlatformId
+          ? "platform"
+          : "common"
+    );
+    setDeviceBindingMode("INCLUDE_IN_DEVICE");
+    setTagsLayer1(initialTags);
+  }, [initialCategoryId, initialCommand, initialHostTypeId, initialPlatformId, initialScopeMode, initialTags, initialVendorId]);
 
   useEffect(() => {
     let active = true;
@@ -112,7 +169,7 @@ export const CommandEditor = ({
       if (tagInput.trim()) params.set("q", tagInput.trim());
       if (categoryId) params.set("categoryId", categoryId);
       if (hostTypeId) params.set("hostTypeId", hostTypeId);
-      if (platformId) params.set("platformId", platformId);
+      if (scopeMode === "platform" && platformId) params.set("platformId", platformId);
       const response = await fetch(`/api/commands/tags?${params.toString()}`);
       if (!response.ok || !active) return;
       setTagSuggestions(await response.json());
@@ -122,7 +179,7 @@ export const CommandEditor = ({
       active = false;
       clearTimeout(timer);
     };
-  }, [categoryId, hostTypeId, platformId, tagInput]);
+  }, [categoryId, hostTypeId, platformId, scopeMode, tagInput]);
 
   const categories = useMemo(() => {
     const map = new Map<number, { id: number; name: string }>();
@@ -142,7 +199,7 @@ export const CommandEditor = ({
     return hostTypes.filter((hostType) => hostType.categoryId === id);
   }, [categoryId, hostTypes]);
 
-  const filteredPlatforms = useMemo(() => {
+  const filteredPlatformsWithoutForced = useMemo(() => {
     if (!hostTypeId && !categoryId) return platforms;
 
     if (hostTypeId) {
@@ -158,67 +215,87 @@ export const CommandEditor = ({
     );
   }, [categoryId, hostTypeId, platforms]);
 
+  const filteredPlatforms = useMemo(() => {
+    if (!platformId) return filteredPlatformsWithoutForced;
+    if (filteredPlatformsWithoutForced.some((item) => String(item.id) === platformId)) {
+      return filteredPlatformsWithoutForced;
+    }
+    const selected = platforms.find((item) => String(item.id) === platformId);
+    return selected ? [selected, ...filteredPlatformsWithoutForced] : filteredPlatformsWithoutForced;
+  }, [filteredPlatformsWithoutForced, platformId, platforms]);
+
+  const availableVendors = useMemo(() => {
+    if (vendors.length > 0) {
+      return [...vendors].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    const map = new Map<number, { id: number; name: string }>();
+    for (const platform of platforms) {
+      if (!platform.vendor) continue;
+      map.set(platform.vendor.id, platform.vendor);
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [platforms, vendors]);
+
   useEffect(() => {
-    if (!hostTypeId) return;
+    if (!hostTypeId || lockHostType || hostTypes.length === 0) return;
     if (!filteredHostTypes.some((hostType) => String(hostType.id) === hostTypeId)) {
       setHostTypeId("");
     }
-  }, [filteredHostTypes, hostTypeId]);
+  }, [filteredHostTypes, hostTypeId, hostTypes.length, lockHostType]);
 
   useEffect(() => {
-    if (!platformId) return;
-    if (!filteredPlatforms.some((platform) => String(platform.id) === platformId)) {
+    if (!platformId || lockPlatform || platforms.length === 0) return;
+    if (!filteredPlatformsWithoutForced.some((platform) => String(platform.id) === platformId)) {
       setPlatformId("");
     }
-  }, [filteredPlatforms, platformId]);
+  }, [filteredPlatformsWithoutForced, lockPlatform, platformId, platforms.length]);
+
+  useEffect(() => {
+    if (scopeMode === "platform") {
+      if (!platformId && filteredPlatforms[0]) {
+        setPlatformId(String(filteredPlatforms[0].id));
+      }
+      if (platformId) {
+        const selected = platforms.find((item) => String(item.id) === platformId);
+        if (selected?.vendor) setVendorId(String(selected.vendor.id));
+      }
+      return;
+    }
+    if (scopeMode === "vendor") {
+      setPlatformId("");
+      if (!vendorId && availableVendors[0]) {
+        setVendorId(String(availableVendors[0].id));
+      }
+      return;
+    }
+    setPlatformId("");
+    setVendorId("");
+  }, [availableVendors, filteredPlatforms, platformId, platforms, scopeMode, vendorId]);
 
   const hostTypeMap = useMemo(() => new Map(hostTypes.map((x) => [String(x.id), x])), [hostTypes]);
   const platformMap = useMemo(() => new Map(platforms.map((x) => [String(x.id), x])), [platforms]);
-
-  const handleAddHostType = async () => {
-    if (!categoryId) {
-      window.alert("先に分類を選択してください。");
-      return;
-    }
-    const name = window.prompt("追加するホスト種別名");
-    if (!name) return;
-    const response = await fetch("/api/host-types", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, categoryId: Number(categoryId) })
-    });
-    if (!response.ok) return;
-    const created = (await response.json()) as HostType;
-    setHostTypes((prev) => {
-      const exists = prev.some((x) => x.id === created.id);
-      return exists ? prev : [...prev, created].sort((a, b) => a.groupOrderIndex - b.groupOrderIndex);
-    });
-    setHostTypeId(String(created.id));
-  };
-
-  const handleAddPlatform = async () => {
-    const name = window.prompt("追加する機種名");
-    if (!name) return;
-    const response = await fetch("/api/platforms", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name })
-    });
-    if (!response.ok) return;
-    const created = (await response.json()) as Platform;
-    setPlatforms((prev) => {
-      const exists = prev.some((x) => x.id === created.id);
-      return exists ? prev : [...prev, created].sort((a, b) => a.name.localeCompare(b.name));
-    });
-    setPlatformId(String(created.id));
-  };
+  const vendorMap = useMemo(
+    () =>
+      new Map(
+        platforms
+          .map((platform) => platform.vendor)
+          .filter((vendor): vendor is NonNullable<Platform["vendor"]> => Boolean(vendor))
+          .map((vendor) => [String(vendor.id), vendor])
+      ),
+    [platforms]
+  );
 
   const handleSave = async ({ keepContext }: { keepContext: boolean }) => {
     setSaving(true);
     setError(null);
 
-    if (!title.trim() || !commandText.trim() || !hostTypeId) {
+    if (!title.trim() || !commandText.trim() || (scopeMode !== "vendor" && !hostTypeId)) {
       setError("必須項目を入力してください。");
+      setSaving(false);
+      return;
+    }
+    if (scopeMode === "vendor" && !vendorId) {
+      setError("ベンダを選択してください。");
       setSaving(false);
       return;
     }
@@ -228,25 +305,30 @@ export const CommandEditor = ({
       description,
       commandText,
       hostTypeId: Number(hostTypeId),
-      platformId: platformId ? Number(platformId) : null,
+      platformId: scopeMode === "platform" && platformId ? Number(platformId) : null,
+      vendorId: scopeMode === "vendor" && vendorId ? Number(vendorId) : null,
+      visibility,
+      deviceBindingMode,
       danger,
       tags: tagsLayer1
     };
 
-    const response = await fetch(
-      initialCommand ? `/api/commands/${initialCommand.id}` : "/api/commands",
-      {
-        method: initialCommand ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, updatedAt: currentUpdatedAt })
-      }
-    );
+    const response = await fetch(initialCommand ? `/api/commands/${initialCommand.id}` : "/api/commands", {
+      method: initialCommand ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, updatedAt: currentUpdatedAt })
+    });
 
     if (!response.ok) {
-      if (response.status === 409) {
-        setError("他で更新されました。再読み込みしてください。");
-      } else {
-        setError("保存に失敗しました。");
+      try {
+        const body = await response.json();
+        if (response.status === 409) {
+          setError("他で更新されました。再読み込みしてください。");
+        } else {
+          setError(String(body?.error ?? "保存に失敗しました。"));
+        }
+      } catch {
+        setError(response.status === 409 ? "他で更新されました。再読み込みしてください。" : "保存に失敗しました。");
       }
       setSaving(false);
       return;
@@ -262,6 +344,8 @@ export const CommandEditor = ({
       setCommandText("");
       setDanger(false);
       onCreated?.();
+    } else if (onCreated) {
+      onCreated();
     } else {
       window.location.href = `/commands/${saved.id}/edit`;
     }
@@ -283,7 +367,65 @@ export const CommandEditor = ({
       />
 
       <Stack gap={6}>
-        <Text size="sm" fw={600}>分類 (単一)</Text>
+        <Text size="sm" fw={600}>適用範囲</Text>
+        <Group gap="xs">
+          {!lockPlatform ? (
+            <Badge
+              style={badgeStyle}
+              variant={scopeMode === "common" ? "filled" : "light"}
+              color={scopeMode === "common" ? "blue" : "gray"}
+              onClick={() => setScopeMode("common")}
+            >
+              共通
+            </Badge>
+          ) : null}
+          <Badge
+            style={badgeStyle}
+            variant={scopeMode === "platform" ? "filled" : "light"}
+            color={scopeMode === "platform" ? "blue" : "gray"}
+            onClick={() => setScopeMode("platform")}
+          >
+            機種固有
+          </Badge>
+          <Badge
+            style={badgeStyle}
+            variant={scopeMode === "vendor" ? "filled" : "light"}
+            color={scopeMode === "vendor" ? "cyan" : "gray"}
+            onClick={() => setScopeMode("vendor")}
+          >
+            ベンダ共通
+          </Badge>
+        </Group>
+      </Stack>
+
+      {scopeMode === "vendor" ? (
+        <Stack gap={6}>
+          <Text size="sm" fw={600}>ベンダ</Text>
+          <Group gap="xs" wrap="wrap">
+            {availableVendors.map((item) => (
+              <Badge
+                key={item.id}
+                style={badgeStyle}
+                variant={vendorId === String(item.id) ? "filled" : "light"}
+                color={vendorId === String(item.id) ? "cyan" : "gray"}
+                onClick={() => setVendorId(String(item.id))}
+              >
+                {item.name}
+              </Badge>
+            ))}
+          </Group>
+          {!hostTypeId ? (
+            <Text size="xs" c="dimmed">
+              ホスト種別未選択でも保存できます（自動で Vendor-Shared を使用）。
+            </Text>
+          ) : null}
+        </Stack>
+      ) : null}
+
+      {scopeMode !== "vendor" ? (
+        <>
+          <Stack gap={6}>
+        <Text size="sm" fw={600}>分類</Text>
         <Group gap="xs" wrap="wrap">
           {categories.map((item) => (
             <Badge
@@ -291,7 +433,10 @@ export const CommandEditor = ({
               style={badgeStyle}
               variant={categoryId === String(item.id) ? "filled" : "light"}
               color={categoryId === String(item.id) ? "blue" : "gray"}
-              onClick={() => setCategoryId(String(item.id))}
+              onClick={() => {
+                if (lockHostType) return;
+                setCategoryId(String(item.id));
+              }}
             >
               {item.name}
             </Badge>
@@ -300,10 +445,7 @@ export const CommandEditor = ({
       </Stack>
 
       <Stack gap={6}>
-        <Group justify="space-between">
-          <Text size="sm" fw={600}>ホスト種別 (単一)</Text>
-          <Button size="xs" variant="light" onClick={handleAddHostType}>ホスト種別を追加</Button>
-        </Group>
+        <Text size="sm" fw={600}>ホスト種別</Text>
         <Group gap="xs" wrap="wrap">
           {filteredHostTypes.map((item) => (
             <Badge
@@ -312,6 +454,7 @@ export const CommandEditor = ({
               variant={hostTypeId === String(item.id) ? "filled" : "light"}
               color={hostTypeId === String(item.id) ? "blue" : "gray"}
               onClick={() => {
+                if (lockHostType) return;
                 setHostTypeId(String(item.id));
                 setCategoryId(String(item.categoryId));
               }}
@@ -323,32 +466,29 @@ export const CommandEditor = ({
       </Stack>
 
       <Stack gap={6}>
-        <Group justify="space-between">
-          <Text size="sm" fw={600}>機種名 (単一 / 任意)</Text>
-          <Button size="xs" variant="light" onClick={handleAddPlatform}>機種名を追加</Button>
-        </Group>
+        <Text size="sm" fw={600}>機種名</Text>
         <Group gap="xs" wrap="wrap">
-          <Badge
-            style={badgeStyle}
-            variant={platformId === "" ? "filled" : "light"}
-            color={platformId === "" ? "blue" : "gray"}
-            onClick={() => setPlatformId("")}
-          >
-            共通
-          </Badge>
-          {filteredPlatforms.map((item) => (
-            <Badge
-              key={item.id}
-              style={badgeStyle}
-              variant={platformId === String(item.id) ? "filled" : "light"}
-              color={platformId === String(item.id) ? "blue" : "gray"}
-              onClick={() => setPlatformId(String(item.id))}
-            >
-              {item.vendor ? `${item.vendor.name}/${item.name}` : item.name}
-            </Badge>
-          ))}
+          {scopeMode === "platform"
+            ? filteredPlatforms.map((item) => (
+                <Badge
+                  key={item.id}
+                  style={badgeStyle}
+                  variant={platformId === String(item.id) ? "filled" : "light"}
+                  color={platformId === String(item.id) ? "blue" : "gray"}
+                  onClick={() => {
+                    if (lockPlatform) return;
+                    setPlatformId(String(item.id));
+                    if (item.vendor) setVendorId(String(item.vendor.id));
+                  }}
+                >
+                  {item.name}
+                </Badge>
+              ))
+            : null}
         </Group>
       </Stack>
+        </>
+      ) : null}
 
       <Stack gap={6}>
         <Text size="sm" fw={600}>タグ (複数)</Text>
@@ -356,11 +496,32 @@ export const CommandEditor = ({
           placeholder="タグ入力"
           value={tagsLayer1}
           data={tagSuggestions.map((tag) => tag.name)}
-          searchable
           searchValue={tagInput}
           onSearchChange={setTagInput}
           onChange={(values) => setTagsLayer1(normalizeTagValues(values))}
         />
+      </Stack>
+
+      <Stack gap={6}>
+        <Text size="sm" fw={600}>装置情報連携</Text>
+        <Group gap="xs">
+          <Badge
+            style={badgeStyle}
+            variant={deviceBindingMode === "INCLUDE_IN_DEVICE" ? "filled" : "light"}
+            color={deviceBindingMode === "INCLUDE_IN_DEVICE" ? "teal" : "gray"}
+            onClick={() => setDeviceBindingMode("INCLUDE_IN_DEVICE")}
+          >
+            連携する
+          </Badge>
+          <Badge
+            style={badgeStyle}
+            variant={deviceBindingMode === "EXCLUDE_FROM_DEVICE" ? "filled" : "light"}
+            color={deviceBindingMode === "EXCLUDE_FROM_DEVICE" ? "teal" : "gray"}
+            onClick={() => setDeviceBindingMode("EXCLUDE_FROM_DEVICE")}
+          >
+            連携しない
+          </Badge>
+        </Group>
       </Stack>
 
       <Checkbox label="危険コマンド" checked={danger} onChange={(e) => setDanger(e.currentTarget.checked)} />
@@ -393,8 +554,11 @@ export const CommandEditor = ({
       {hostTypeId && hostTypeMap.has(hostTypeId) ? (
         <Text size="xs" c="dimmed">選択中 ホスト種別: {hostTypeMap.get(hostTypeId)?.name}</Text>
       ) : null}
-      {platformId && platformMap.has(platformId) ? (
+      {scopeMode === "platform" && platformId && platformMap.has(platformId) ? (
         <Text size="xs" c="dimmed">選択中 機種名: {platformMap.get(platformId)?.name}</Text>
+      ) : null}
+      {scopeMode === "vendor" && vendorId && vendorMap.has(vendorId) ? (
+        <Text size="xs" c="dimmed">選択中 ベンダ: {vendorMap.get(vendorId)?.name}</Text>
       ) : null}
     </Stack>
   );

@@ -2,6 +2,7 @@ export type Tag = {
   id: number;
   name: string;
   normalizedName: string;
+  kind?: "COMMAND" | "LINK";
 };
 
 export type CommandVariable = {
@@ -15,6 +16,10 @@ export type CommandVariable = {
 };
 
 export type CommandTag = {
+  tag: Tag;
+};
+
+export type PlatformLinkTag = {
   tag: Tag;
 };
 
@@ -52,6 +57,10 @@ export type Command = {
   commandText: string;
   hostTypeId: number;
   platformId?: number | null;
+  vendorId?: number | null;
+  visibility?: "PUBLIC" | "PRIVATE";
+  ownerUserId?: string | null;
+  deviceBindingMode?: "INCLUDE_IN_DEVICE" | "EXCLUDE_FROM_DEVICE";
   danger: boolean;
   orderIndex: number;
   createdBy: string;
@@ -59,6 +68,36 @@ export type Command = {
   updatedAt: string;
   hostType: HostType;
   platform?: Platform | null;
+  vendor?: {
+    id: number;
+    name: string;
+  } | null;
   variables: CommandVariable[];
   tags: CommandTag[];
+};
+
+export type PlatformLink = {
+  id: number;
+  title: string;
+  urlTemplate: string;
+  commentTemplate?: string | null;
+  platformId?: number | null;
+  vendorId?: number | null;
+  hostTypeId: number;
+  visibility: "PUBLIC" | "PRIVATE";
+  ownerUserId?: string | null;
+  deviceBindingMode?: "INCLUDE_IN_DEVICE" | "EXCLUDE_FROM_DEVICE";
+  orderIndex: number;
+  createdBy: string;
+  updatedBy: string;
+  updatedAt: string;
+  hostType?: HostType;
+  platform?: Platform | null;
+  vendor?: {
+    id: number;
+    name: string;
+  } | null;
+  tags?: PlatformLinkTag[];
+  resolvedUrl?: string;
+  resolvedComment?: string;
 };

@@ -9,6 +9,8 @@ import {
   isSafeValue
 } from "@/lib/commandTemplate";
 
+const variableKey = (name: string) => name.trim().toLowerCase();
+
 const renderHighlighted = (source: string, focusedVariable: string | null) => {
   const parts = source.split(/(\[[^\[\]\s]+\])/g);
   return parts.map((part, index) => {
@@ -38,11 +40,17 @@ const renderHighlighted = (source: string, focusedVariable: string | null) => {
 export const CommandCopyModal = ({
   commands,
   opened,
+  cachedValues,
+  onCommitValues,
+  onClearCachedValues,
   onCopied,
   onClose
 }: {
   commands: Command[];
   opened: boolean;
+  cachedValues?: Record<string, string>;
+  onCommitValues?: (values: Record<string, string>) => void;
+  onClearCachedValues?: () => void;
   onCopied?: () => void;
   onClose: () => void;
 }) => {
@@ -63,12 +71,12 @@ export const CommandCopyModal = ({
   useEffect(() => {
     const nextValues: Record<string, string> = {};
     for (const variable of variables) {
-      nextValues[variable] = "";
+      nextValues[variable] = cachedValues?.[variableKey(variable)] ?? "";
     }
     setValues(nextValues);
     setError(null);
     setFocusedVariable(null);
-  }, [variables, opened]);
+  }, [cachedValues, variables, opened]);
 
   const originalPreview = useMemo(() => {
     return commands.map((command) => command.commandText).join("\n");
@@ -103,6 +111,14 @@ export const CommandCopyModal = ({
     }
 
     await navigator.clipboard.writeText(preview);
+    if (variables.length > 0) {
+      const committed: Record<string, string> = {};
+      for (const variable of variables) {
+        const value = (values[variable] ?? "").trim();
+        if (value) committed[variableKey(variable)] = value;
+      }
+      onCommitValues?.(committed);
+    }
     onCopied?.();
     onClose();
   };
@@ -160,7 +176,10 @@ export const CommandCopyModal = ({
 
           {error ? <Text size="sm" c="red">{error}</Text> : null}
 
-          <Group justify="flex-end">
+          <Group justify="space-between">
+            <Button variant="subtle" color="gray" size="xs" onClick={onClearCachedValues}>
+              保持値をクリア
+            </Button>
             <Button onClick={handleCopy} disabled={variables.length > 0 && !validation.valid}>
               コピー
             </Button>

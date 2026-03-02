@@ -12,6 +12,8 @@ model Vendor {
   name           String
   normalizedName String     @unique
   platforms      Platform[]
+  commands       Command[]
+  platformLinks  PlatformLink[]
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 }
@@ -24,6 +26,7 @@ model Platform {
   vendor         Vendor             @relation(fields: [vendorId], references: [id])
   hostTypeLinks  HostTypePlatform[]
   commands       Command[]
+  links          PlatformLink[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 }
@@ -47,6 +50,7 @@ model HostType {
   category        Category           @relation(fields: [categoryId], references: [id])
   platforms       HostTypePlatform[]
   commands        Command[]
+  links           PlatformLink[]
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 }
@@ -63,10 +67,14 @@ model HostTypePlatform {
 model Tag {
   id             Int          @id @default(autoincrement())
   name           String
-  normalizedName String       @unique
+  normalizedName String
+  kind           TagKind      @default(COMMAND)
   commandTags    CommandTag[]
+  platformLinkTags PlatformLinkTag[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+
+  @@unique([normalizedName, kind])
 }
 
 model Command {
@@ -76,6 +84,10 @@ model Command {
   commandText  String
   hostTypeId   Int
   platformId   Int?
+  vendorId     Int?
+  visibility   Visibility       @default(PUBLIC)
+  ownerUserId  String?
+  deviceBindingMode DeviceBindingMode @default(INCLUDE_IN_DEVICE)
   danger       Boolean          @default(false)
   orderIndex   Int              @default(0)
   createdBy    String
@@ -86,10 +98,39 @@ model Command {
 
   hostType  HostType         @relation(fields: [hostTypeId], references: [id])
   platform  Platform?        @relation(fields: [platformId], references: [id])
+  vendor    Vendor?          @relation(fields: [vendorId], references: [id])
   variables CommandVariable[]
   tags      CommandTag[]
 
-  @@index([hostTypeId, platformId, orderIndex])
+  @@index([hostTypeId, platformId, vendorId, orderIndex])
+  @@index([visibility, ownerUserId])
+}
+
+model PlatformLink {
+  id              Int        @id @default(autoincrement())
+  title           String
+  urlTemplate     String
+  commentTemplate String?
+  platformId      Int?
+  vendorId        Int?
+  hostTypeId      Int
+  visibility      Visibility @default(PUBLIC)
+  ownerUserId     String?
+  deviceBindingMode DeviceBindingMode @default(INCLUDE_IN_DEVICE)
+  orderIndex      Int        @default(0)
+  createdBy       String
+  updatedBy       String
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+
+  platform Platform? @relation(fields: [platformId], references: [id])
+  vendor   Vendor?   @relation(fields: [vendorId], references: [id])
+  hostType HostType @relation(fields: [hostTypeId], references: [id])
+  tags     PlatformLinkTag[]
+
+  @@index([platformId, vendorId, hostTypeId, orderIndex])
+  @@index([visibility, ownerUserId])
 }
 
 model CommandVariable {
@@ -113,4 +154,28 @@ model CommandTag {
   tag       Tag     @relation(fields: [tagId], references: [id])
 
   @@id([commandId, tagId])
+}
+
+model PlatformLinkTag {
+  platformLinkId Int
+  tagId          Int
+  platformLink   PlatformLink @relation(fields: [platformLinkId], references: [id], onDelete: Cascade)
+  tag            Tag          @relation(fields: [tagId], references: [id])
+
+  @@id([platformLinkId, tagId])
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum DeviceBindingMode {
+  INCLUDE_IN_DEVICE
+  EXCLUDE_FROM_DEVICE
+}
+
+enum TagKind {
+  COMMAND
+  LINK
 }

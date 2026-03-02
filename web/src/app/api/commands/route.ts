@@ -26,7 +26,10 @@ const getTagsByNames = async (names: string[]) => {
   if (cleaned.length === 0) return [];
 
   const existing = await prisma.tag.findMany({
-    where: { normalizedName: { in: cleaned.map((tag) => tag.normalizedName) } }
+    where: {
+      kind: "COMMAND",
+      normalizedName: { in: cleaned.map((tag) => tag.normalizedName) }
+    }
   });
 
   const existingMap = new Map(
@@ -38,25 +41,76 @@ const getTagsByNames = async (names: string[]) => {
   );
 
   if (toCreate.length > 0) {
-    await prisma.tag.createMany({ data: toCreate });
+    await prisma.tag.createMany({
+      data: toCreate.map((tag) => ({ ...tag, kind: "COMMAND" }))
+    });
   }
 
   return prisma.tag.findMany({
-    where: { normalizedName: { in: cleaned.map((tag) => tag.normalizedName) } }
+    where: {
+      kind: "COMMAND",
+      normalizedName: { in: cleaned.map((tag) => tag.normalizedName) }
+    }
   });
+};
+
+const ensureVendorSharedHostType = async () => {
+  const defaultCategoryName = "共通";
+  const defaultCategoryNormalized = normalizeName(defaultCategoryName);
+  let category = await prisma.category.findUnique({
+    where: { normalizedName: defaultCategoryNormalized }
+  });
+  if (!category) {
+    const maxCategory = await prisma.category.aggregate({ _max: { groupOrderIndex: true } });
+    category = await prisma.category.create({
+      data: {
+        name: defaultCategoryName,
+        normalizedName: defaultCategoryNormalized,
+        groupOrderIndex: (maxCategory._max.groupOrderIndex ?? 0) + 1
+      }
+    });
+  }
+
+  const defaultHostTypeName = "共通";
+  const defaultHostTypeNormalized = normalizeName(defaultHostTypeName);
+  let hostType = await prisma.hostType.findUnique({
+    where: { normalizedName: defaultHostTypeNormalized }
+  });
+  if (!hostType) {
+    const maxHostType = await prisma.hostType.aggregate({ _max: { groupOrderIndex: true } });
+    hostType = await prisma.hostType.create({
+      data: {
+        name: defaultHostTypeName,
+        normalizedName: defaultHostTypeNormalized,
+        categoryId: category.id,
+        groupOrderIndex: (maxHostType._max.groupOrderIndex ?? 0) + 1
+      }
+    });
+  }
+
+  return hostType.id;
 };
 
 export const GET = async (request: NextRequest) => {
   const { searchParams } = request.nextUrl;
+  const actorName = resolveActorName(request);
   const q = searchParams.get("q")?.trim();
   const normalizedQ = q ? q.normalize("NFKC") : null;
   const categoryId = parseNumber(searchParams.get("categoryId"));
   const hostTypeId = parseNumber(searchParams.get("hostTypeId"));
   const platformId = parseNumber(searchParams.get("platformId"));
+  const vendorId = parseNumber(searchParams.get("vendorId"));
+  const scope = searchParams.get("scope") === "vendor" ? "vendor" : "normal";
+  const selectedPlatform = platformId
+    ? await prisma.platform.findUnique({ where: { id: platformId }, select: { vendorId: true } })
+    : null;
+  const selectedVendorId = selectedPlatform?.vendorId ?? null;
+  const forDevice = searchParams.get("forDevice") === "1";
   const tagIds = (searchParams.get("tagIds") || "")
     .split(",")
     .map((value) => Number(value))
     .filter((value) => Number.isFinite(value) && value > 0);
+  const tagMode = searchParams.get("tagMode") === "or" ? "or" : "and";
   const pageRaw = searchParams.get("page");
   const pageSizeRaw = searchParams.get("pageSize");
   const page = Number(pageRaw || "1");
@@ -69,6 +123,14 @@ export const GET = async (request: NextRequest) => {
   const where: Prisma.CommandWhereInput = {
     deletedAt: null
   };
+  const andConditions: Prisma.CommandWhereInput[] = [
+    {
+      OR: [
+        { visibility: "PUBLIC" },
+        { visibility: "PRIVATE", ownerUserId: actorName }
+      ]
+    }
+  ];
 
   if (normalizedQ) {
     where.OR = [
@@ -78,30 +140,55 @@ export const GET = async (request: NextRequest) => {
     ];
   }
 
-  if (hostTypeId) {
-    where.hostTypeId = hostTypeId;
-  }
-
-  if (categoryId) {
-    where.hostType = {
-      is: { categoryId }
+  if (scope === "vendor") {
+    andConditions.push({
+      ...(vendorId ? { vendorId } : { vendorId: { not: null } }),
+      platformId: null
+    });
+  } else {
+    const hostCategoryFilter: Prisma.CommandWhereInput = {
+      ...(hostTypeId ? { hostTypeId } : {}),
+      ...(categoryId ? { hostType: { is: { categoryId } } } : {})
     };
+
+    if (!platformId) {
+      Object.assign(where, hostCategoryFilter);
+    } else {
+      andConditions.push({
+        OR: [
+          {
+            ...hostCategoryFilter,
+            OR: [{ platformId: null, vendorId: null }, { platformId }]
+          },
+          ...(selectedVendorId ? [{ platformId: null, vendorId: selectedVendorId }] : [])
+        ]
+      });
+    }
   }
 
-  if (platformId) {
-    where.AND = [
-      ...(where.AND ?? []),
-      { OR: [{ platformId: null }, { platformId }] }
-    ];
+  if (forDevice) {
+    where.deviceBindingMode = "INCLUDE_IN_DEVICE";
   }
 
   if (tagIds.length > 0) {
-    where.tags = {
-      some: {
-        tagId: { in: tagIds }
-      }
-    };
+    if (tagMode === "or") {
+      where.tags = {
+        some: {
+          tagId: { in: tagIds }
+        }
+      };
+    } else {
+      andConditions.push(
+        ...tagIds.map((tagId) => ({
+          tags: {
+            some: { tagId }
+          }
+        }))
+      );
+    }
   }
+
+  where.AND = andConditions;
 
   const commands = await prisma.command.findMany({
     where,
@@ -112,6 +199,7 @@ export const GET = async (request: NextRequest) => {
         }
       },
       platform: true,
+      vendor: true,
       variables: true,
       tags: {
         include: {
@@ -121,7 +209,10 @@ export const GET = async (request: NextRequest) => {
     },
     orderBy: [
       { hostType: { groupOrderIndex: "asc" } },
-      { orderIndex: "asc" }
+      // platformId=null(共通) を機種固有より先に並べる
+      { platformId: "asc" },
+      { orderIndex: "asc" },
+      { id: "asc" }
     ],
     ...(usePagination
       ? {
@@ -149,9 +240,23 @@ export const POST = async (request: NextRequest) => {
   const actorName = resolveActorName(request);
 
   const tags = await getTagsByNames(body.tags ?? []);
-  const hostTypeId = Number(body.hostTypeId);
-  const platformId = body.platformId ? Number(body.platformId) : null;
-  if (!Number.isFinite(hostTypeId) || hostTypeId <= 0) {
+  const rawHostTypeId = body.hostTypeId ? Number(body.hostTypeId) : null;
+  const rawPlatformId = body.platformId ? Number(body.platformId) : null;
+  const rawVendorId = body.vendorId ? Number(body.vendorId) : null;
+  const vendorId = Number.isFinite(rawVendorId) && rawVendorId && rawVendorId > 0 ? rawVendorId : null;
+  const hostTypeId =
+    Number.isFinite(rawHostTypeId) && rawHostTypeId && rawHostTypeId > 0
+      ? rawHostTypeId
+      : (vendorId ? await ensureVendorSharedHostType() : null);
+  const platformId =
+    vendorId !== null ? null : (Number.isFinite(rawPlatformId) && rawPlatformId && rawPlatformId > 0 ? rawPlatformId : null);
+  if (vendorId) {
+    const vendor = await prisma.vendor.findUnique({ where: { id: vendorId }, select: { id: true } });
+    if (!vendor) {
+      return NextResponse.json({ error: "invalid vendorId" }, { status: 400 });
+    }
+  }
+  if (!hostTypeId) {
     return NextResponse.json(
       { error: "hostTypeId required" },
       { status: 400 }
@@ -159,7 +264,7 @@ export const POST = async (request: NextRequest) => {
   }
 
   const maxOrder = await prisma.command.aggregate({
-    where: { hostTypeId, platformId },
+    where: { hostTypeId, platformId, vendorId, deletedAt: null },
     _max: { orderIndex: true }
   });
 
@@ -170,6 +275,13 @@ export const POST = async (request: NextRequest) => {
       commandText: body.commandText,
       hostTypeId,
       platformId,
+      vendorId,
+      visibility: body.visibility === "PRIVATE" ? "PRIVATE" : "PUBLIC",
+      ownerUserId: body.visibility === "PRIVATE" ? actorName : null,
+      deviceBindingMode:
+        body.deviceBindingMode === "EXCLUDE_FROM_DEVICE"
+          ? "EXCLUDE_FROM_DEVICE"
+          : "INCLUDE_IN_DEVICE",
       danger: Boolean(body.danger),
       orderIndex: body.orderIndex ?? ((maxOrder._max.orderIndex ?? 0) + 1),
       createdBy: actorName,
@@ -182,6 +294,7 @@ export const POST = async (request: NextRequest) => {
         }
       },
       platform: true,
+      vendor: true,
       variables: true,
       tags: { include: { tag: true } }
     }
@@ -202,6 +315,7 @@ export const POST = async (request: NextRequest) => {
         }
       },
       platform: true,
+      vendor: true,
       variables: true,
       tags: { include: { tag: true } }
     }

@@ -17,17 +17,46 @@ export const CommandList = ({
   commands,
   enableReorder = false,
   enableHostTypeReorder = false,
+  disableDeleteInDetail = false,
+  disableDeleteTooltip = "機種別個別ページから削除してください。",
+  variableStoreKey = "commands-variable-store",
   onRegisterCopyAll,
   onRefresh
 }: {
   commands: Command[];
   enableReorder?: boolean;
   enableHostTypeReorder?: boolean;
+  disableDeleteInDetail?: boolean;
+  disableDeleteTooltip?: string;
+  variableStoreKey?: string;
   onRegisterCopyAll?: (fn: () => void) => void;
   onRefresh?: () => void;
 }) => {
   const [selected, setSelected] = useState<Command | null>(null);
   const [copyTargets, setCopyTargets] = useState<Command[]>([]);
+  const [variableStore, setVariableStore] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!variableStoreKey || typeof window === "undefined") {
+      setVariableStore({});
+      return;
+    }
+    const raw = window.sessionStorage.getItem(variableStoreKey);
+    if (!raw) {
+      setVariableStore({});
+      return;
+    }
+    try {
+      setVariableStore(JSON.parse(raw) as Record<string, string>);
+    } catch {
+      setVariableStore({});
+    }
+  }, [variableStoreKey]);
+
+  useEffect(() => {
+    if (!variableStoreKey || typeof window === "undefined") return;
+    window.sessionStorage.setItem(variableStoreKey, JSON.stringify(variableStore));
+  }, [variableStore, variableStoreKey]);
 
   const groups = useMemo(() => {
     const map = new Map<
@@ -185,7 +214,10 @@ export const CommandList = ({
               return nameA.localeCompare(nameB);
             })
             .map(([key, list]) => {
-              const sorted = [...list].sort((a, b) => a.orderIndex - b.orderIndex);
+              const sorted = [...list].sort((a, b) => {
+                if (a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex;
+                return a.id - b.id;
+              });
               const platformLabel = key === "common" ? "共通" : list[0].platform?.name ?? "Platform";
 
               return (
@@ -233,6 +265,13 @@ export const CommandList = ({
       <CommandCopyModal
         commands={copyTargets}
         opened={copyTargets.length > 0}
+        cachedValues={variableStore}
+        onCommitValues={(values) => setVariableStore((prev) => ({ ...prev, ...values }))}
+        onClearCachedValues={() => {
+          setVariableStore({});
+          if (!variableStoreKey || typeof window === "undefined") return;
+          window.sessionStorage.removeItem(variableStoreKey);
+        }}
         onCopied={() =>
           notifications.show({
             color: "teal",
@@ -246,6 +285,8 @@ export const CommandList = ({
       <CommandDetailModal
         command={selected}
         opened={Boolean(selected)}
+        disableDelete={disableDeleteInDetail}
+        disableDeleteTooltip={disableDeleteTooltip}
         onUpdated={onRefresh}
         onDeleted={() => setSelected(null)}
         onClose={() => setSelected(null)}

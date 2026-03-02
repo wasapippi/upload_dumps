@@ -1,11 +1,15 @@
 "use client";
 
-import { Badge, Button, Group, Stack, Text } from "@mantine/core";
+import { Badge, Button, Group, SegmentedControl, Stack, Text } from "@mantine/core";
 import { HostType, Platform, Tag } from "./types";
 
 const badgeStyle = { cursor: "pointer" } as const;
 
 type CategoryItem = {
+  id: number;
+  name: string;
+};
+type VendorItem = {
   id: number;
   name: string;
 };
@@ -22,9 +26,16 @@ export const CommandFilterPanel = ({
   onPlatformChange,
   availableTags,
   selectedTagIds,
+  tagMode,
+  onTagModeChange,
   onToggleTag,
   onAddHostType,
   onAddPlatform,
+  scopeMode = "normal",
+  onScopeModeChange,
+  vendors = [],
+  vendorId = "",
+  onVendorChange,
   showPlatform = true
 }: {
   categories: CategoryItem[];
@@ -38,97 +49,179 @@ export const CommandFilterPanel = ({
   onPlatformChange: (value: string) => void;
   availableTags: Tag[];
   selectedTagIds: number[];
+  tagMode: "and" | "or";
+  onTagModeChange: (value: "and" | "or") => void;
   onToggleTag: (tagId: number) => void;
   onAddHostType?: () => void;
   onAddPlatform?: () => void;
+  scopeMode?: "normal" | "vendor";
+  onScopeModeChange?: (value: "normal" | "vendor") => void;
+  vendors?: VendorItem[];
+  vendorId?: string;
+  onVendorChange?: (value: string) => void;
   showPlatform?: boolean;
 }) => {
+  const vendorScope = scopeMode === "vendor";
+  const selectedHostType = filteredHostTypes.find((item) => String(item.id) === hostTypeId) ?? null;
+  const selectedPlatform = filteredPlatforms.find((item) => String(item.id) === platformId) ?? null;
+  const hostTypeCollapsed = hostTypeId !== "";
+  const platformCollapsed = platformId !== "";
+
   return (
     <Stack gap="xs">
-      <Text size="sm" fw={600}>分類 (単一)</Text>
-      <Group gap="xs" wrap="wrap">
-        <Badge
-          style={badgeStyle}
-          variant={categoryId === "" ? "filled" : "light"}
-          color={categoryId === "" ? "blue" : "gray"}
-          onClick={() => onCategoryChange("")}
-        >
-          全て
-        </Badge>
-        {categories.map((item) => (
-          <Badge
-            key={item.id}
-            style={badgeStyle}
-            variant={categoryId === String(item.id) ? "filled" : "light"}
-            color={categoryId === String(item.id) ? "blue" : "gray"}
-            onClick={() => onCategoryChange(String(item.id))}
-          >
-            {item.name}
-          </Badge>
-        ))}
+      <Group justify="flex-start" align="center" gap="sm">
+        <Text size="sm" fw={600}>表示モード</Text>
+        <SegmentedControl
+          size="xs"
+          value={scopeMode}
+          onChange={(value) => onScopeModeChange?.(value as "normal" | "vendor")}
+          data={[
+            { label: "通常", value: "normal" },
+            { label: "ベンダ共有", value: "vendor" }
+          ]}
+        />
       </Group>
-
-      <Group justify="space-between" align="flex-end" wrap="wrap">
-        <Text size="sm" fw={600}>ホスト種別 (単一)</Text>
-        {onAddHostType ? (
-          <Button size="xs" variant="light" onClick={onAddHostType}>ホスト種別を追加</Button>
-        ) : null}
-      </Group>
-      <Group gap="xs" wrap="wrap">
-        <Badge
-          style={badgeStyle}
-          variant={hostTypeId === "" ? "filled" : "light"}
-          color={hostTypeId === "" ? "blue" : "gray"}
-          onClick={() => onHostTypeChange("", categoryId)}
-        >
-          全て
-        </Badge>
-        {filteredHostTypes.map((item) => (
-          <Badge
-            key={item.id}
-            style={badgeStyle}
-            variant={hostTypeId === String(item.id) ? "filled" : "light"}
-            color={hostTypeId === String(item.id) ? "blue" : "gray"}
-            onClick={() => onHostTypeChange(String(item.id), String(item.categoryId))}
-          >
-            {item.name}
-          </Badge>
-        ))}
-      </Group>
-
-      {showPlatform ? (
+      {vendorScope ? (
         <>
+          <Text size="sm" fw={600}>ベンダ</Text>
+          <Group gap="xs" wrap="wrap">
+            <Badge
+              style={badgeStyle}
+              variant={vendorId === "" ? "filled" : "light"}
+              color={vendorId === "" ? "cyan" : "gray"}
+              onClick={() => onVendorChange?.("")}
+            >
+              全て
+            </Badge>
+            {vendors.map((item) => (
+              <Badge
+                key={item.id}
+                style={badgeStyle}
+                variant={vendorId === String(item.id) ? "filled" : "light"}
+                color={vendorId === String(item.id) ? "cyan" : "gray"}
+                onClick={() => onVendorChange?.(String(item.id))}
+              >
+                {item.name}
+              </Badge>
+            ))}
+          </Group>
+          <Text size="xs" c="dimmed">
+            ベンダ共有では、分類・ホスト種別・機種名の条件を無視して表示します。
+          </Text>
+        </>
+      ) : null}
+
+      {!vendorScope ? (
+        <>
+          <Text size="sm" fw={600}>分類</Text>
+          <Group gap="xs" wrap="wrap">
+            <Badge
+              style={badgeStyle}
+              variant={categoryId === "" ? "filled" : "light"}
+              color={categoryId === "" ? "blue" : "gray"}
+              onClick={() => onCategoryChange("")}
+            >
+              全て
+            </Badge>
+            {categories.map((item) => (
+              <Badge
+                key={item.id}
+                style={badgeStyle}
+                variant={categoryId === String(item.id) ? "filled" : "light"}
+                color={categoryId === String(item.id) ? "blue" : "gray"}
+                onClick={() => onCategoryChange(String(item.id))}
+              >
+                {item.name}
+              </Badge>
+            ))}
+          </Group>
+
           <Group justify="space-between" align="flex-end" wrap="wrap">
-            <Text size="sm" fw={600}>機種名 (単一)</Text>
-            {onAddPlatform ? (
-              <Button size="xs" variant="light" onClick={onAddPlatform}>機種名を追加</Button>
+            <Text size="sm" fw={600}>ホスト種別</Text>
+            {onAddHostType ? (
+              <Button size="xs" variant="light" onClick={onAddHostType}>ホスト種別を追加</Button>
             ) : null}
           </Group>
           <Group gap="xs" wrap="wrap">
             <Badge
               style={badgeStyle}
-              variant={platformId === "" ? "filled" : "light"}
-              color={platformId === "" ? "blue" : "gray"}
-              onClick={() => onPlatformChange("")}
+              variant={hostTypeId === "" ? "filled" : "light"}
+              color={hostTypeId === "" ? "blue" : "gray"}
+              onClick={() => onHostTypeChange("", categoryId)}
             >
               全て
             </Badge>
-            {filteredPlatforms.map((item) => (
-              <Badge
-                key={item.id}
-                style={badgeStyle}
-                variant={platformId === String(item.id) ? "filled" : "light"}
-                color={platformId === String(item.id) ? "blue" : "gray"}
-                onClick={() => onPlatformChange(String(item.id))}
-              >
-                {item.vendor ? `${item.vendor.name}/${item.name}` : item.name}
-              </Badge>
-            ))}
+            {hostTypeCollapsed
+              ? (selectedHostType ? (
+                  <Badge style={badgeStyle} variant="filled" color="blue">
+                    {selectedHostType.name}
+                  </Badge>
+                ) : null)
+              : filteredHostTypes.map((item) => (
+                  <Badge
+                    key={item.id}
+                    style={badgeStyle}
+                    variant={hostTypeId === String(item.id) ? "filled" : "light"}
+                    color={hostTypeId === String(item.id) ? "blue" : "gray"}
+                    onClick={() => onHostTypeChange(String(item.id), String(item.categoryId))}
+                  >
+                    {item.name}
+                  </Badge>
+                ))}
           </Group>
+
+          {showPlatform ? (
+            <>
+              <Group justify="space-between" align="flex-end" wrap="wrap">
+                <Text size="sm" fw={600}>機種名</Text>
+                {onAddPlatform ? (
+                  <Button size="xs" variant="light" onClick={onAddPlatform}>機種名を追加</Button>
+                ) : null}
+              </Group>
+              <Group gap="xs" wrap="wrap">
+                <Badge
+                  style={badgeStyle}
+                  variant={platformId === "" ? "filled" : "light"}
+                  color={platformId === "" ? "blue" : "gray"}
+                  onClick={() => onPlatformChange("")}
+                >
+                  全て
+                </Badge>
+                {platformCollapsed
+                  ? (selectedPlatform ? (
+                      <Badge style={badgeStyle} variant="filled" color="blue">
+                        {selectedPlatform.name}
+                      </Badge>
+                    ) : null)
+                  : filteredPlatforms.map((item) => (
+                      <Badge
+                        key={item.id}
+                        style={badgeStyle}
+                        variant={platformId === String(item.id) ? "filled" : "light"}
+                        color={platformId === String(item.id) ? "blue" : "gray"}
+                        onClick={() => onPlatformChange(String(item.id))}
+                      >
+                        {item.name}
+                      </Badge>
+                    ))}
+              </Group>
+            </>
+          ) : null}
         </>
       ) : null}
 
-      <Text size="sm" fw={600}>タグ (複数 / トグル)</Text>
+      <Group justify="flex-start" align="center" gap="xs">
+        <Text size="sm" fw={600}>タグ</Text>
+        <SegmentedControl
+          size="xs"
+          value={tagMode}
+          onChange={(value) => onTagModeChange(value as "and" | "or")}
+          data={[
+            { label: "AND", value: "and" },
+            { label: "OR", value: "or" }
+          ]}
+        />
+      </Group>
       <Group
         gap="xs"
         wrap="wrap"
@@ -159,4 +252,3 @@ export const CommandFilterPanel = ({
     </Stack>
   );
 };
-

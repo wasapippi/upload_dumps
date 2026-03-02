@@ -1,9 +1,11 @@
-# Exported files for commands feature
+# Exported files for commands/links/platforms feature
 
-This folder contains only the command feature-related files copied from `surfboard`.
+This folder contains the latest command/link/platform feature files copied from `surfboard`.
 
-- UI pages/components
-- API routes for commands/host-types/platforms/tags
+- UI pages/components (`commands`, `links`, `platforms`, `devices`, `taxonomy`)
+- API routes (`commands`, `platform-links`, taxonomy masters, tags/vendors/categories)
 - supporting libs
 - Prisma schema/seed
-- SQL DDL (`web/sql/commands_schema.sql`)
+- SQL files:
+  - `web/sql/commands_schema.sql` (schema template)
+  - `web/sql/surfboard_command_links_full.sql` (CREATE TABLE + current INSERT data dump)

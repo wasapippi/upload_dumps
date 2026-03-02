@@ -15,7 +15,10 @@ import { CommandFilterPanel } from "@/components/commands/CommandFilterPanel";
 import { CommandPaginationBar } from "@/components/commands/CommandPaginationBar";
 import { FixedPlatformPreviewModal } from "@/components/commands/FixedPlatformPreviewModal";
 import { Command, HostType, Platform, Tag } from "@/components/commands/types";
+import { useSearchParams } from "next/navigation";
 const PAGE_SIZE = 20;
+type Vendor = { id: number; name: string };
+type Category = { id: number; name: string; groupOrderIndex: number };
 
 type CommandPageResponse = {
   items: Command[];
@@ -25,46 +28,45 @@ type CommandPageResponse = {
 };
 
 export default function CommandsPage() {
+  const searchParams = useSearchParams();
+  const hostName = searchParams.get("hostName") ?? "";
   const [commands, setCommands] = useState<Command[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [hostTypes, setHostTypes] = useState<HostType[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [q, setQ] = useState("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [hostTypeId, setHostTypeId] = useState<string>("");
   const [platformId, setPlatformId] = useState<string>("");
+  const [scopeMode, setScopeMode] = useState<"normal" | "vendor">("normal");
+  const [vendorId, setVendorId] = useState<string>("");
 
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [tagMode, setTagMode] = useState<"and" | "or">("and");
 
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [copyAllAction, setCopyAllAction] = useState<(() => void) | null>(null);
-  const [previewCopyAllAction, setPreviewCopyAllAction] = useState<(() => void) | null>(null);
 
   const [reorderMode, setReorderMode] = useState(false);
   const [openCreate, setOpenCreate] = useState(false);
+  const [createEditorKey, setCreateEditorKey] = useState(0);
   const [openFixedPlatformPreview, setOpenFixedPlatformPreview] = useState(false);
 
   const fetchMasters = useCallback(async () => {
-    const [hostTypeRes, platformRes] = await Promise.all([
+    const [categoryRes, hostTypeRes, platformRes, vendorRes] = await Promise.all([
+      fetch("/api/categories"),
       fetch("/api/host-types"),
-      fetch("/api/platforms")
+      fetch("/api/platforms"),
+      fetch("/api/vendors")
     ]);
+    if (categoryRes.ok) setCategories(await categoryRes.json());
     if (hostTypeRes.ok) setHostTypes(await hostTypeRes.json());
     if (platformRes.ok) setPlatforms(await platformRes.json());
+    if (vendorRes.ok) setVendors(await vendorRes.json());
   }, []);
-
-  const categories = useMemo(() => {
-    const map = new Map<number, { id: number; name: string }>();
-    for (const hostType of hostTypes) {
-      if (!hostType.category) continue;
-      map.set(hostType.category.id, {
-        id: hostType.category.id,
-        name: hostType.category.name
-      });
-    }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [hostTypes]);
 
   const filteredHostTypes = useMemo(() => {
     if (!categoryId) return hostTypes;
@@ -105,10 +107,18 @@ export default function CommandsPage() {
   const fetchCommands = useCallback(async () => {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
-    if (categoryId) params.set("categoryId", categoryId);
-    if (hostTypeId) params.set("hostTypeId", hostTypeId);
-    if (platformId) params.set("platformId", platformId);
-    if (selectedTagIds.length > 0) params.set("tagIds", selectedTagIds.join(","));
+    params.set("scope", scopeMode);
+    if (scopeMode === "vendor") {
+      if (vendorId) params.set("vendorId", vendorId);
+    } else {
+      if (categoryId) params.set("categoryId", categoryId);
+      if (hostTypeId) params.set("hostTypeId", hostTypeId);
+      if (platformId) params.set("platformId", platformId);
+    }
+    if (selectedTagIds.length > 0) {
+      params.set("tagIds", selectedTagIds.join(","));
+      params.set("tagMode", tagMode);
+    }
     params.set("page", String(page));
     params.set("pageSize", String(PAGE_SIZE));
 
@@ -124,14 +134,19 @@ export default function CommandsPage() {
 
     setCommands(data.items);
     setTotal(data.total);
-  }, [categoryId, hostTypeId, page, platformId, q, selectedTagIds]);
+  }, [categoryId, hostTypeId, page, platformId, q, scopeMode, selectedTagIds, tagMode, vendorId]);
 
   const fetchAvailableTags = useCallback(async () => {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
-    if (categoryId) params.set("categoryId", categoryId);
-    if (hostTypeId) params.set("hostTypeId", hostTypeId);
-    if (platformId) params.set("platformId", platformId);
+    params.set("scope", scopeMode);
+    if (scopeMode === "vendor") {
+      if (vendorId) params.set("vendorId", vendorId);
+    } else {
+      if (categoryId) params.set("categoryId", categoryId);
+      if (hostTypeId) params.set("hostTypeId", hostTypeId);
+      if (platformId) params.set("platformId", platformId);
+    }
 
     const response = await fetch(`/api/commands/tags?${params.toString()}`);
     if (!response.ok) return;
@@ -140,8 +155,14 @@ export default function CommandsPage() {
     setAvailableTags(tags);
 
     const tagIdSet = new Set(tags.map((tag) => tag.id));
-    setSelectedTagIds((prev) => prev.filter((id) => tagIdSet.has(id)));
-  }, [categoryId, hostTypeId, platformId, q]);
+    setSelectedTagIds((prev) => {
+      const next = prev.filter((id) => tagIdSet.has(id));
+      if (next.length === prev.length && next.every((id, index) => id === prev[index])) {
+        return prev;
+      }
+      return next;
+    });
+  }, [categoryId, hostTypeId, platformId, q, scopeMode, vendorId]);
 
   useEffect(() => {
     fetchMasters();
@@ -157,33 +178,7 @@ export default function CommandsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [q, categoryId, hostTypeId, platformId, selectedTagIds]);
-
-  const addHostType = async () => {
-    if (!categoryId) {
-      window.alert("先に分類を選択してください。");
-      return;
-    }
-    const name = window.prompt("追加するホスト種別名");
-    if (!name) return;
-    await fetch("/api/host-types", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, categoryId: Number(categoryId) })
-    });
-    await fetchMasters();
-  };
-
-  const addPlatform = async () => {
-    const name = window.prompt("追加する機種名");
-    if (!name) return;
-    await fetch("/api/platforms", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name })
-    });
-    await fetchMasters();
-  };
+  }, [q, categoryId, hostTypeId, platformId, selectedTagIds, scopeMode, tagMode, vendorId]);
 
   const toggleTag = (tagId: number) => {
     setSelectedTagIds((prev) =>
@@ -200,8 +195,26 @@ export default function CommandsPage() {
     if (!platformId) return "未指定（機種固定ページでは事前指定想定）";
     const selected = filteredPlatforms.find((item) => String(item.id) === platformId);
     if (!selected) return "未指定（機種固定ページでは事前指定想定）";
-    return selected.vendor ? `${selected.vendor.name}/${selected.name}` : selected.name;
+    return selected.name;
   }, [filteredPlatforms, platformId]);
+  const selectedPlatformVendorId = useMemo(() => {
+    if (!platformId) return "";
+    return String(filteredPlatforms.find((item) => String(item.id) === platformId)?.vendorId ?? "");
+  }, [filteredPlatforms, platformId]);
+  const selectedCategoryLabel = useMemo(() => {
+    if (!categoryId) return "全て";
+    return categories.find((item) => String(item.id) === categoryId)?.name ?? "未指定";
+  }, [categories, categoryId]);
+  const selectedHostTypeLabel = useMemo(() => {
+    if (!hostTypeId) return "全て";
+    return hostTypes.find((item) => String(item.id) === hostTypeId)?.name ?? "未指定";
+  }, [hostTypeId, hostTypes]);
+  const scopeModeLabel = scopeMode === "vendor" ? "ベンダ共有" : "通常";
+
+  const openCreateModal = () => {
+    setCreateEditorKey((prev) => prev + 1);
+    setOpenCreate(true);
+  };
 
   return (
     <Stack gap="md" p="md">
@@ -224,11 +237,16 @@ export default function CommandsPage() {
           <Button variant="light" onClick={() => setOpenFixedPlatformPreview(true)}>
             機種固定プレビュー
           </Button>
-          <Button onClick={() => setOpenCreate(true)}>新規追加</Button>
+          <Button onClick={openCreateModal}>新規追加</Button>
         </Group>
       </Group>
 
       <CommandFilterPanel
+        scopeMode={scopeMode}
+        onScopeModeChange={setScopeMode}
+        vendors={vendors}
+        vendorId={vendorId}
+        onVendorChange={setVendorId}
         categories={categories}
         categoryId={categoryId}
         onCategoryChange={setCategoryId}
@@ -245,9 +263,9 @@ export default function CommandsPage() {
         onPlatformChange={setPlatformId}
         availableTags={availableTags}
         selectedTagIds={selectedTagIds}
+        tagMode={tagMode}
+        onTagModeChange={setTagMode}
         onToggleTag={toggleTag}
-        onAddHostType={addHostType}
-        onAddPlatform={addPlatform}
       />
 
       <CommandPaginationBar
@@ -270,10 +288,13 @@ export default function CommandsPage() {
 
       <Modal opened={openCreate} onClose={() => setOpenCreate(false)} title="コマンド新規作成" size="xl">
         <CommandEditor
+          key={createEditorKey}
           initialContext={{
             categoryId,
             hostTypeId,
             platformId,
+            vendorId,
+            scopeMode: scopeMode === "vendor" ? "vendor" : (platformId ? "platform" : "common"),
             tags: selectedTagNames
           }}
           onCreated={fetchCommands}
@@ -282,39 +303,18 @@ export default function CommandsPage() {
 
       <FixedPlatformPreviewModal
         opened={openFixedPlatformPreview}
-        onClose={() => {
-          setOpenFixedPlatformPreview(false);
-          setPreviewCopyAllAction(null);
-        }}
+        onClose={() => setOpenFixedPlatformPreview(false)}
+        hostName={hostName}
+        scopeModeLabel={scopeModeLabel}
+        categoryLabel={selectedCategoryLabel}
+        hostTypeLabel={selectedHostTypeLabel}
         selectedPlatformLabel={selectedPlatformLabel}
-        q={q}
-        onSearchChange={setQ}
-        categories={categories}
-        categoryId={categoryId}
-        onCategoryChange={setCategoryId}
-        filteredHostTypes={filteredHostTypes}
+        selectedPlatformVendorId={selectedPlatformVendorId}
         hostTypeId={hostTypeId}
-        onHostTypeChange={(nextHostTypeId, nextCategoryId) => {
-          setHostTypeId(nextHostTypeId);
-          if (nextHostTypeId) {
-            setCategoryId(nextCategoryId);
-          }
-        }}
-        filteredPlatforms={filteredPlatforms}
         platformId={platformId}
-        onPlatformChange={setPlatformId}
-        availableTags={availableTags}
-        selectedTagIds={selectedTagIds}
-        onToggleTag={toggleTag}
-        commands={commands}
-        total={total}
-        page={page}
-        totalPages={totalPages}
-        onPrevPage={() => setPage((prev) => Math.max(prev - 1, 1))}
-        onNextPage={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-        onRegisterCopyAll={(fn) => setPreviewCopyAllAction(() => fn)}
-        onRefresh={fetchCommands}
-        onCopyAll={() => previewCopyAllAction?.()}
+        initialQ={q}
+        initialTagIds={selectedTagIds}
+        initialTagMode={tagMode}
       />
     </Stack>
   );
