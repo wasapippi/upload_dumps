@@ -16,12 +16,21 @@ const pickHeader = (request: HeaderSource, name: string): string | undefined => 
 };
 
 export const resolveActorName = (request: HeaderSource) => {
+  const decodeIfEncoded = (value?: string) => {
+    if (!value) return value;
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  };
+
   const candidates = [
-    pickHeader(request, "x-actor-name"),
-    pickHeader(request, "x-user-name"),
-    pickHeader(request, "x-editor-name"),
-    pickHeader(request, "x-forwarded-user"),
-    pickHeader(request, "x-auth-request-user")
+    decodeIfEncoded(pickHeader(request, "x-actor-name")),
+    decodeIfEncoded(pickHeader(request, "x-user-name")),
+    decodeIfEncoded(pickHeader(request, "x-editor-name")),
+    decodeIfEncoded(pickHeader(request, "x-forwarded-user")),
+    decodeIfEncoded(pickHeader(request, "x-auth-request-user"))
   ];
 
   for (const candidate of candidates) {

@@ -144,7 +144,7 @@ export const CommandList = ({
       ]
     };
 
-    await fetch("/api/commands/reorder", {
+    await fetch("/api/platforms/commands/reorder", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
@@ -162,7 +162,7 @@ export const CommandList = ({
     const current = groups[groupIndex].hostType;
     const target = groups[targetIndex].hostType;
 
-    await fetch("/api/host-types/reorder", {
+    await fetch("/api/platforms/host-types/reorder", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

@@ -27,7 +27,7 @@ export default function DevicePage() {
         hostTypeId: String(device.hostTypeId),
         platformId: String(device.platformId)
       });
-      const response = await fetch(`/api/commands/for-device?${params.toString()}`);
+      const response = await fetch(`/api/platforms/commands/for-device?${params.toString()}`);
       if (response.ok) {
         setCommands(await response.json());
       }

@@ -106,9 +106,9 @@ export const CommandEditor = ({
 
   const loadMasters = async () => {
     const [hostTypeRes, platformRes, vendorRes] = await Promise.all([
-      fetch("/api/host-types"),
-      fetch("/api/platforms"),
-      fetch("/api/vendors")
+      fetch("/api/platforms/host-types"),
+      fetch("/api/platforms/platforms"),
+      fetch("/api/platforms/vendors")
     ]);
     if (hostTypeRes.ok) setHostTypes(await hostTypeRes.json());
     if (platformRes.ok) setPlatforms(await platformRes.json());
@@ -170,7 +170,7 @@ export const CommandEditor = ({
       if (categoryId) params.set("categoryId", categoryId);
       if (hostTypeId) params.set("hostTypeId", hostTypeId);
       if (scopeMode === "platform" && platformId) params.set("platformId", platformId);
-      const response = await fetch(`/api/commands/tags?${params.toString()}`);
+      const response = await fetch(`/api/platforms/commands/tags?${params.toString()}`);
       if (!response.ok || !active) return;
       setTagSuggestions(await response.json());
     }, 200);
@@ -313,7 +313,7 @@ export const CommandEditor = ({
       tags: tagsLayer1
     };
 
-    const response = await fetch(initialCommand ? `/api/commands/${initialCommand.id}` : "/api/commands", {
+    const response = await fetch(initialCommand ? `/api/platforms/commands/${initialCommand.id}` : "/api/platforms/commands", {
       method: initialCommand ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...payload, updatedAt: currentUpdatedAt })

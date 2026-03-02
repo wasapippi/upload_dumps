@@ -75,7 +75,7 @@ export const FixedPlatformPreviewModal = ({
     params.set("platformId", platformId);
     if (hostTypeId) params.set("hostTypeId", hostTypeId);
 
-    const res = await fetch(`/api/commands?${params.toString()}`);
+    const res = await fetch(`/api/platforms/commands?${params.toString()}`);
     if (!res.ok) {
       setAllCommands([]);
       return;
@@ -160,7 +160,7 @@ export const FixedPlatformPreviewModal = ({
       const params = new URLSearchParams();
       params.set("platformId", platformId);
       if (hostTypeId) params.set("hostTypeId", hostTypeId);
-      const res = await fetch(`/api/platform-links/tags?${params.toString()}`);
+      const res = await fetch(`/api/platforms/platform-links/tags?${params.toString()}`);
       if (!res.ok) {
         setAvailableLinkTags([]);
         setSelectedLinkTagIds([]);
@@ -189,7 +189,7 @@ export const FixedPlatformPreviewModal = ({
       const params = new URLSearchParams();
       params.set("platformId", platformId);
       if (hostTypeId) params.set("hostTypeId", hostTypeId);
-      const res = await fetch(`/api/platform-links?${params.toString()}`);
+      const res = await fetch(`/api/platforms/platform-links?${params.toString()}`);
       if (!res.ok) {
         setAllLinks([]);
         return;
@@ -294,7 +294,7 @@ export const FixedPlatformPreviewModal = ({
       const params = new URLSearchParams();
       params.set("scope", "link");
       if (tagInput.trim()) params.set("q", tagInput.trim());
-      const res = await fetch(`/api/tags/suggest?${params.toString()}`);
+      const res = await fetch(`/api/platforms/tags/suggest?${params.toString()}`);
       if (!res.ok || !active) return;
       const data = (await res.json()) as Tag[];
       setTagSuggestions(Array.isArray(data) ? data : []);
@@ -365,7 +365,7 @@ export const FixedPlatformPreviewModal = ({
       deviceBindingMode,
       updatedAt: editingLink?.updatedAt
     };
-    const res = await fetch(editingLink ? `/api/platform-links/${editingLink.id}` : "/api/platform-links", {
+    const res = await fetch(editingLink ? `/api/platforms/platform-links/${editingLink.id}` : "/api/platforms/platform-links", {
       method: editingLink ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
@@ -382,7 +382,7 @@ export const FixedPlatformPreviewModal = ({
       params.set("tagIds", selectedLinkTagIds.join(","));
       params.set("tagMode", linkTagMode);
     }
-    const listRes = await fetch(`/api/platform-links?${params.toString()}`);
+    const listRes = await fetch(`/api/platforms/platform-links?${params.toString()}`);
     if (listRes.ok) {
       const data = await listRes.json();
       setAllLinks(Array.isArray(data) ? data : []);

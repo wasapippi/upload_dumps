@@ -35,8 +35,8 @@ export const TicketCommandLinkPanel = ({
       });
 
       const [commandRes, linkRes] = await Promise.all([
-        fetch(`/api/commands?${commandParams.toString()}`),
-        fetch(`/api/platform-links?${linkParams.toString()}`)
+        fetch(`/api/platforms/commands?${commandParams.toString()}`),
+        fetch(`/api/platforms/platform-links?${linkParams.toString()}`)
       ]);
 
       if (!active) return;

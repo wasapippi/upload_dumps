@@ -57,10 +57,10 @@ export default function CommandsPage() {
 
   const fetchMasters = useCallback(async () => {
     const [categoryRes, hostTypeRes, platformRes, vendorRes] = await Promise.all([
-      fetch("/api/categories"),
-      fetch("/api/host-types"),
-      fetch("/api/platforms"),
-      fetch("/api/vendors")
+      fetch("/api/platforms/categories"),
+      fetch("/api/platforms/host-types"),
+      fetch("/api/platforms/platforms"),
+      fetch("/api/platforms/vendors")
     ]);
     if (categoryRes.ok) setCategories(await categoryRes.json());
     if (hostTypeRes.ok) setHostTypes(await hostTypeRes.json());
@@ -122,7 +122,7 @@ export default function CommandsPage() {
     params.set("page", String(page));
     params.set("pageSize", String(PAGE_SIZE));
 
-    const response = await fetch(`/api/commands?${params.toString()}`);
+    const response = await fetch(`/api/platforms/commands?${params.toString()}`);
     if (!response.ok) return;
 
     const data = (await response.json()) as CommandPageResponse | Command[];
@@ -148,7 +148,7 @@ export default function CommandsPage() {
       if (platformId) params.set("platformId", platformId);
     }
 
-    const response = await fetch(`/api/commands/tags?${params.toString()}`);
+    const response = await fetch(`/api/platforms/commands/tags?${params.toString()}`);
     if (!response.ok) return;
 
     const tags = (await response.json()) as Tag[];

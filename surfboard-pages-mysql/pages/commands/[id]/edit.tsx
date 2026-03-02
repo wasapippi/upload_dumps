@@ -13,7 +13,7 @@ export default function CommandEditPage() {
 
   useEffect(() => {
     const load = async () => {
-      const response = await fetch(`/api/commands/${id}`);
+      const response = await fetch(`/api/platforms/commands/${id}`);
       if (response.ok) {
         setCommand(await response.json());
       }

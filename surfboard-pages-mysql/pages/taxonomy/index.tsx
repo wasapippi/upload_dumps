@@ -42,10 +42,10 @@ export default function TaxonomyPage() {
 
   const load = useCallback(async () => {
     const [categoryRes, hostTypeRes, platformRes, vendorRes] = await Promise.all([
-      fetch("/api/categories"),
-      fetch("/api/host-types"),
-      fetch("/api/platforms"),
-      fetch("/api/vendors")
+      fetch("/api/platforms/categories"),
+      fetch("/api/platforms/host-types"),
+      fetch("/api/platforms/platforms"),
+      fetch("/api/platforms/vendors")
     ]);
     if (categoryRes.ok) setCategories(await categoryRes.json());
     if (hostTypeRes.ok) setHostTypes(await hostTypeRes.json());
@@ -140,7 +140,7 @@ export default function TaxonomyPage() {
 
     if (mode === "category") {
       payload.groupOrderIndex = groupOrderIndex;
-      url = editingId ? `/api/categories/${editingId}` : "/api/categories";
+      url = editingId ? `/api/platforms/categories/${editingId}` : "/api/platforms/categories";
     } else if (mode === "hostType") {
       if (!categoryId) {
         setError("分類は必須です。");
@@ -148,16 +148,16 @@ export default function TaxonomyPage() {
       }
       payload.categoryId = Number(categoryId);
       payload.groupOrderIndex = groupOrderIndex;
-      url = editingId ? `/api/host-types/${editingId}` : "/api/host-types";
+      url = editingId ? `/api/platforms/host-types/${editingId}` : "/api/platforms/host-types";
     } else if (mode === "platform") {
       if (!vendorId) {
         setError("ベンダは必須です。");
         return;
       }
       payload.vendorId = Number(vendorId);
-      url = editingId ? `/api/platforms/${editingId}` : "/api/platforms";
+      url = editingId ? `/api/platforms/platforms/${editingId}` : "/api/platforms/platforms";
     } else {
-      url = editingId ? `/api/vendors/${editingId}` : "/api/vendors";
+      url = editingId ? `/api/platforms/vendors/${editingId}` : "/api/platforms/vendors";
     }
 
     const res = await fetch(url, {
@@ -187,10 +187,10 @@ export default function TaxonomyPage() {
     if (!ok) return;
 
     let url = "";
-    if (mode === "category") url = `/api/categories/${editingId}`;
-    else if (mode === "hostType") url = `/api/host-types/${editingId}`;
-    else if (mode === "platform") url = `/api/platforms/${editingId}`;
-    else url = `/api/vendors/${editingId}`;
+    if (mode === "category") url = `/api/platforms/categories/${editingId}`;
+    else if (mode === "hostType") url = `/api/platforms/host-types/${editingId}`;
+    else if (mode === "platform") url = `/api/platforms/platforms/${editingId}`;
+    else url = `/api/platforms/vendors/${editingId}`;
 
     let res = await fetch(url, { method: "DELETE" });
     if (!res.ok && res.status === 409) {
@@ -241,7 +241,7 @@ export default function TaxonomyPage() {
   const saveMappings = async () => {
     if (!mappingHostTypeId) return;
     setMappingSaving(true);
-    const res = await fetch("/api/host-type-platforms", {
+    const res = await fetch("/api/platforms/host-type-platforms", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

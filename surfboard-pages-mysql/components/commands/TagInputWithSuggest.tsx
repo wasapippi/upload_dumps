@@ -8,7 +8,7 @@ import { Tag } from "./types";
 const fetchSuggestions = async (query: string) => {
   const params = new URLSearchParams();
   if (query) params.set("q", query);
-  const response = await fetch(`/api/tags/suggest?${params.toString()}`);
+  const response = await fetch(`/api/platforms/tags/suggest?${params.toString()}`);
   if (!response.ok) return [];
   return (await response.json()) as Tag[];
 };

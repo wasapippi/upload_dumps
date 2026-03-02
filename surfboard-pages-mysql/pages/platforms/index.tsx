@@ -16,8 +16,8 @@ export default function PlatformsPage() {
 
   const fetchMasters = useCallback(async () => {
     const [hostTypeRes, platformRes] = await Promise.all([
-      fetch("/api/host-types"),
-      fetch("/api/platforms")
+      fetch("/api/platforms/host-types"),
+      fetch("/api/platforms/platforms")
     ]);
     if (hostTypeRes.ok) setHostTypes(await hostTypeRes.json());
     if (platformRes.ok) setPlatforms(await platformRes.json());
