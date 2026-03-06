@@ -13,7 +13,7 @@ import { CommandList } from "@/components/commands/CommandList";
 import { CommandEditor } from "@/components/commands/CommandEditor";
 import { CommandFilterPanel } from "@/components/commands/CommandFilterPanel";
 import { CommandPaginationBar } from "@/components/commands/CommandPaginationBar";
-import { FixedPlatformPreviewModal } from "@/components/commands/FixedPlatformPreviewModal";
+import { HostTypeFixedPreviewAction } from "@/components/commands/HostTypeFixedPreviewAction";
 import { Command, HostType, Platform, Tag } from "@/components/commands/types";
 import { useRouter } from "next/router";
 const PAGE_SIZE = 20;
@@ -53,7 +53,6 @@ export default function CommandsPage() {
   const [reorderMode, setReorderMode] = useState(false);
   const [openCreate, setOpenCreate] = useState(false);
   const [createEditorKey, setCreateEditorKey] = useState(0);
-  const [openFixedPlatformPreview, setOpenFixedPlatformPreview] = useState(false);
 
   const fetchMasters = useCallback(async () => {
     const [categoryRes, hostTypeRes, platformRes, vendorRes] = await Promise.all([
@@ -191,26 +190,6 @@ export default function CommandsPage() {
     const selected = new Set(selectedTagIds);
     return availableTags.filter((tag) => selected.has(tag.id)).map((tag) => tag.name);
   }, [availableTags, selectedTagIds]);
-  const selectedPlatformLabel = useMemo(() => {
-    if (!platformId) return "未指定（機種固定ページでは事前指定想定）";
-    const selected = filteredPlatforms.find((item) => String(item.id) === platformId);
-    if (!selected) return "未指定（機種固定ページでは事前指定想定）";
-    return selected.name;
-  }, [filteredPlatforms, platformId]);
-  const selectedPlatformVendorId = useMemo(() => {
-    if (!platformId) return "";
-    return String(filteredPlatforms.find((item) => String(item.id) === platformId)?.vendor?.id ?? "");
-  }, [filteredPlatforms, platformId]);
-  const selectedCategoryLabel = useMemo(() => {
-    if (!categoryId) return "全て";
-    return categories.find((item) => String(item.id) === categoryId)?.name ?? "未指定";
-  }, [categories, categoryId]);
-  const selectedHostTypeLabel = useMemo(() => {
-    if (!hostTypeId) return "全て";
-    return hostTypes.find((item) => String(item.id) === hostTypeId)?.name ?? "未指定";
-  }, [hostTypeId, hostTypes]);
-  const scopeModeLabel = scopeMode === "vendor" ? "ベンダ共有" : "通常";
-
   const openCreateModal = () => {
     setCreateEditorKey((prev) => prev + 1);
     setOpenCreate(true);
@@ -234,9 +213,7 @@ export default function CommandsPage() {
           >
             {reorderMode ? "順番変更終了" : "順番変更"}
           </Button>
-          <Button variant="light" onClick={() => setOpenFixedPlatformPreview(true)}>
-            機種固定プレビュー
-          </Button>
+          <HostTypeFixedPreviewAction hostName={hostName} hostTypeId={hostTypeId} />
           <Button onClick={openCreateModal}>新規追加</Button>
         </Group>
       </Group>
@@ -301,21 +278,6 @@ export default function CommandsPage() {
         />
       </Modal>
 
-      <FixedPlatformPreviewModal
-        opened={openFixedPlatformPreview}
-        onClose={() => setOpenFixedPlatformPreview(false)}
-        hostName={hostName}
-        scopeModeLabel={scopeModeLabel}
-        categoryLabel={selectedCategoryLabel}
-        hostTypeLabel={selectedHostTypeLabel}
-        selectedPlatformLabel={selectedPlatformLabel}
-        selectedPlatformVendorId={selectedPlatformVendorId}
-        hostTypeId={hostTypeId}
-        platformId={platformId}
-        initialQ={q}
-        initialTagIds={selectedTagIds}
-        initialTagMode={tagMode}
-      />
     </Stack>
   );
 }

@@ -18,6 +18,8 @@ export const FixedPlatformPreviewModal = ({
   selectedPlatformVendorId,
   hostTypeId,
   platformId,
+  platformOptions,
+  onPlatformSelect,
   initialQ,
   initialTagIds,
   initialTagMode
@@ -32,6 +34,8 @@ export const FixedPlatformPreviewModal = ({
   selectedPlatformVendorId?: string;
   hostTypeId: string;
   platformId: string;
+  platformOptions?: Array<{ id: string; name: string }>;
+  onPlatformSelect?: (platformId: string) => void;
   initialQ?: string;
   initialTagIds?: number[];
   initialTagMode?: "and" | "or";
@@ -416,6 +420,24 @@ export const FixedPlatformPreviewModal = ({
             </Button>
           ) : null}
         </Group>
+        {platformOptions && platformOptions.length > 1 && onPlatformSelect ? (
+          <Stack gap={4}>
+            <Text size="sm" fw={600}>機種名</Text>
+            <Group gap="xs" wrap="wrap">
+              {platformOptions.map((option) => (
+                <Badge
+                  key={option.id}
+                  style={{ cursor: "pointer" }}
+                  variant={option.id === platformId ? "filled" : "light"}
+                  color={option.id === platformId ? "blue" : "gray"}
+                  onClick={() => onPlatformSelect(option.id)}
+                >
+                  {option.name}
+                </Badge>
+              ))}
+            </Group>
+          </Stack>
+        ) : null}
         <Tabs defaultValue="commands">
           <Tabs.List>
             <Tabs.Tab value="commands">関連コマンド</Tabs.Tab>
