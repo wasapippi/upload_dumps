@@ -68,6 +68,10 @@ export const HostTypeFixedPreviewAction = ({ hostName, hostTypeId }: Props) => {
     return categories.find((item) => item.id === selectedHostType.categoryId)?.name ?? "未指定";
   }, [categories, selectedHostType]);
 
+  if (normalizedHostTypeId && availablePlatforms.length === 0) {
+    return null;
+  }
+
   return (
     <>
       <Tooltip label="機種固定プレビュー">
