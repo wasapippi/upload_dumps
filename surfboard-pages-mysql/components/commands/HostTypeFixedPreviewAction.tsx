@@ -11,9 +11,10 @@ type Category = { id: number; name: string };
 type Props = {
   hostName?: string;
   hostTypeId?: string | number | null;
+  platformName?: string;
 };
 
-export const HostTypeFixedPreviewAction = ({ hostName, hostTypeId }: Props) => {
+export const HostTypeFixedPreviewAction = ({ hostName, hostTypeId, platformName }: Props) => {
   const [opened, setOpened] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [hostTypes, setHostTypes] = useState<HostType[]>([]);
@@ -21,6 +22,7 @@ export const HostTypeFixedPreviewAction = ({ hostName, hostTypeId }: Props) => {
   const [selectedPlatformId, setSelectedPlatformId] = useState("");
 
   const normalizedHostTypeId = String(hostTypeId ?? "");
+  const normalizedPlatformName = (platformName ?? "").trim();
 
   useEffect(() => {
     const fetchMasters = async () => {
@@ -36,18 +38,30 @@ export const HostTypeFixedPreviewAction = ({ hostName, hostTypeId }: Props) => {
     fetchMasters();
   }, []);
 
+  const platformsByName = useMemo(() => {
+    if (!normalizedPlatformName) return [] as Platform[];
+    return platforms.filter((platform) => platform.name === normalizedPlatformName);
+  }, [normalizedPlatformName, platforms]);
+
+  const resolvedHostTypeId = useMemo(() => {
+    if (normalizedHostTypeId) return normalizedHostTypeId;
+    const fromPlatform = platformsByName[0]?.hostTypeLinks?.[0]?.hostTypeId;
+    return fromPlatform ? String(fromPlatform) : "";
+  }, [normalizedHostTypeId, platformsByName]);
+
   const selectedHostType = useMemo(
-    () => hostTypes.find((item) => String(item.id) === normalizedHostTypeId) ?? null,
-    [hostTypes, normalizedHostTypeId]
+    () => hostTypes.find((item) => String(item.id) === resolvedHostTypeId) ?? null,
+    [hostTypes, resolvedHostTypeId]
   );
 
   const availablePlatforms = useMemo(() => {
-    if (!normalizedHostTypeId) return [] as Platform[];
-    const hId = Number(normalizedHostTypeId);
+    if (normalizedPlatformName) return platformsByName;
+    if (!resolvedHostTypeId) return [] as Platform[];
+    const hId = Number(resolvedHostTypeId);
     return platforms.filter((platform) =>
       (platform.hostTypeLinks ?? []).some((link) => link.hostTypeId === hId)
     );
-  }, [normalizedHostTypeId, platforms]);
+  }, [normalizedPlatformName, platformsByName, platforms, resolvedHostTypeId]);
 
   useEffect(() => {
     if (availablePlatforms.length === 0) {
@@ -68,7 +82,10 @@ export const HostTypeFixedPreviewAction = ({ hostName, hostTypeId }: Props) => {
     return categories.find((item) => item.id === selectedHostType.categoryId)?.name ?? "未指定";
   }, [categories, selectedHostType]);
 
-  if (normalizedHostTypeId && availablePlatforms.length === 0) {
+  if ((normalizedPlatformName || resolvedHostTypeId) && availablePlatforms.length === 0) {
+    return null;
+  }
+  if (!resolvedHostTypeId) {
     return null;
   }
 
@@ -78,7 +95,7 @@ export const HostTypeFixedPreviewAction = ({ hostName, hostTypeId }: Props) => {
         <ActionIcon
           variant="light"
           size="lg"
-          disabled={!normalizedHostTypeId}
+          disabled={!resolvedHostTypeId}
           onClick={() => setOpened(true)}
         >
           <IconDeviceDesktop size={18} />
@@ -94,7 +111,7 @@ export const HostTypeFixedPreviewAction = ({ hostName, hostTypeId }: Props) => {
         hostTypeLabel={selectedHostType?.name ?? "未指定"}
         selectedPlatformLabel={selectedPlatform?.name ?? "未指定"}
         selectedPlatformVendorId={selectedPlatform?.vendor?.id ? String(selectedPlatform.vendor.id) : ""}
-        hostTypeId={normalizedHostTypeId}
+        hostTypeId={resolvedHostTypeId}
         platformId={selectedPlatformId}
         platformOptions={availablePlatforms.map((item) => ({ id: String(item.id), name: item.name }))}
         onPlatformSelect={setSelectedPlatformId}
