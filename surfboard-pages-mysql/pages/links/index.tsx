@@ -43,6 +43,7 @@ export default function LinksPage() {
   const [editorCategoryId, setEditorCategoryId] = useState<string>("");
   const [editorHostTypeId, setEditorHostTypeId] = useState<string>("");
   const [editorPlatformId, setEditorPlatformId] = useState<string>("");
+  const [editorPlatformIds, setEditorPlatformIds] = useState<string[]>([]);
   const [editorVendorId, setEditorVendorId] = useState<string>("");
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -157,6 +158,7 @@ export default function LinksPage() {
     setEditorCategoryId(value);
     setEditorHostTypeId("");
     setEditorPlatformId("");
+    setEditorPlatformIds([]);
   };
 
   const pagedLinks = useMemo(() => {
@@ -231,6 +233,7 @@ export default function LinksPage() {
     setEditorCategoryId(categoryId);
     setEditorHostTypeId(hostTypeId);
     setEditorPlatformId(platformId);
+    setEditorPlatformIds(platformId ? [platformId] : []);
     setEditorVendorId(vendorId);
     setSaveError(null);
     setOpenModal(true);
@@ -251,6 +254,7 @@ export default function LinksPage() {
     setEditorCategoryId(fallbackCategoryId ? String(fallbackCategoryId) : "");
     setEditorHostTypeId(String(link.hostTypeId ?? ""));
     setEditorPlatformId(link.platformId ? String(link.platformId) : "");
+    setEditorPlatformIds(link.platformId ? [String(link.platformId)] : []);
     setEditorVendorId(link.vendorId ? String(link.vendorId) : "");
     setSaveError(null);
     setOpenModal(true);
@@ -279,7 +283,13 @@ export default function LinksPage() {
       setSaveError("ホスト種別を選択してください。");
       return;
     }
-    if (linkScope === "platform" && !editorPlatformId && !editingLink?.platformId) {
+    const selectedPlatformIds =
+      linkScope === "platform"
+        ? (editingLink
+            ? [String(Number(editorPlatformId || editingLink?.platformId || 0))].filter((id) => id !== "0")
+            : editorPlatformIds)
+        : [];
+    if (linkScope === "platform" && selectedPlatformIds.length === 0) {
       setSaveError("機種名を選択してください。");
       return;
     }
@@ -292,7 +302,8 @@ export default function LinksPage() {
       urlTemplate,
       commentTemplate: commentTemplate || null,
       tags,
-      platformId: linkScope === "platform" ? Number(editorPlatformId || editingLink?.platformId || 0) || null : null,
+      platformId: linkScope === "platform" ? Number(selectedPlatformIds[0] || 0) || null : null,
+      platformIds: linkScope === "platform" ? selectedPlatformIds.map((id) => Number(id)).filter((id) => id > 0) : [],
       vendorId: linkScope === "vendor" ? Number(editorVendorId || editingLink?.vendorId || 0) || null : null,
       hostTypeId: selectedHostTypeId ? Number(selectedHostTypeId) : null,
       visibility: "PUBLIC",
@@ -530,10 +541,17 @@ export default function LinksPage() {
         onCategoryChange={handleEditorCategoryChange}
         hostTypes={editorHostTypes}
         hostTypeId={editorHostTypeId}
-        onHostTypeChange={setEditorHostTypeId}
+        onHostTypeChange={(value) => {
+          setEditorHostTypeId(value);
+          setEditorPlatformId("");
+          setEditorPlatformIds([]);
+        }}
         platforms={editorPlatforms}
         platformId={editorPlatformId}
         onPlatformChange={setEditorPlatformId}
+        platformIds={editorPlatformIds}
+        onPlatformIdsChange={setEditorPlatformIds}
+        multiPlatformSelect={!editingLink && linkScope === "platform"}
         vendors={vendors}
         vendorId={editorVendorId}
         onVendorChange={setEditorVendorId}

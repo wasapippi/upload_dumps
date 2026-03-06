@@ -32,6 +32,9 @@ type Props = {
   platforms?: Platform[];
   platformId?: string;
   onPlatformChange?: (value: string) => void;
+  platformIds?: string[];
+  onPlatformIdsChange?: (values: string[]) => void;
+  multiPlatformSelect?: boolean;
   vendors?: Array<{ id: number; name: string }>;
   vendorId?: string;
   onVendorChange?: (value: string) => void;
@@ -71,6 +74,9 @@ export const PlatformLinkEditorModal = ({
   platforms = [],
   platformId = "",
   onPlatformChange,
+  platformIds = [],
+  onPlatformIdsChange,
+  multiPlatformSelect = false,
   vendors = [],
   vendorId = "",
   onVendorChange,
@@ -179,9 +185,27 @@ export const PlatformLinkEditorModal = ({
                     <Badge
                       key={item.id}
                       style={badgeStyle}
-                      variant={platformId === String(item.id) ? "filled" : "light"}
-                      color={platformId === String(item.id) ? "blue" : "gray"}
-                      onClick={() => onPlatformChange?.(String(item.id))}
+                      variant={
+                        multiPlatformSelect
+                          ? (platformIds.includes(String(item.id)) ? "filled" : "light")
+                          : (platformId === String(item.id) ? "filled" : "light")
+                      }
+                      color={
+                        multiPlatformSelect
+                          ? (platformIds.includes(String(item.id)) ? "blue" : "gray")
+                          : (platformId === String(item.id) ? "blue" : "gray")
+                      }
+                      onClick={() => {
+                        const id = String(item.id);
+                        if (multiPlatformSelect && onPlatformIdsChange) {
+                          const next = platformIds.includes(id)
+                            ? platformIds.filter((v) => v !== id)
+                            : [...platformIds, id];
+                          onPlatformIdsChange(next);
+                          return;
+                        }
+                        onPlatformChange?.(id);
+                      }}
                     >
                       {item.name}
                     </Badge>

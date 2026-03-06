@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { execute, query } from "@/lib/db";
 import { normalizeName } from "@/lib/normalize";
 import { resolveActorName } from "@/lib/auditActor";
+import { applyLinkTemplate } from "@/lib/linkTemplate";
 
 type Row = {
   id: number;
@@ -56,6 +57,7 @@ const ensureLinkTags = async (names: string[]) => {
 
 const listLinks = async (req: NextApiRequest) => {
   const q = String(req.query.q || "").trim();
+  const hostName = String(req.query.hostName || "").trim();
   const hostTypeId = Number(req.query.hostTypeId || 0) || null;
   const platformId = Number(req.query.platformId || 0) || null;
   const vendorId = Number(req.query.vendorId || 0) || null;
@@ -137,8 +139,18 @@ const listLinks = async (req: NextApiRequest) => {
     platform: r.platformId ? { id: r.platformId, name: r.platformName } : null,
     vendor: r.vendorId ? { id: r.vendorId, name: r.vendorName } : null,
     tags: (tagMap.get(r.id) || []).map((tag) => ({ tag })),
-    resolvedUrl: r.urlTemplate,
+    resolvedUrl: applyLinkTemplate(r.urlTemplate, {
+      hostName,
+      platformName: r.platformName,
+      hostTypeName: r.hostTypeName
+    }),
     resolvedComment: r.commentTemplate
+      ? applyLinkTemplate(r.commentTemplate, {
+          hostName,
+          platformName: r.platformName,
+          hostTypeName: r.hostTypeName
+        })
+      : r.commentTemplate
   }));
 };
 
@@ -152,41 +164,75 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === "POST") {
     const body = req.body || {};
     const hostTypeId = Number(body.hostTypeId || 0) || null;
-    const platformId = body.platformId ? Number(body.platformId) : null;
+    const singlePlatformId = body.platformId ? Number(body.platformId) : null;
+    const platformIds = Array.isArray(body.platformIds)
+      ? Array.from(new Set(body.platformIds.map((v: unknown) => Number(v)).filter((v: number) => Number.isInteger(v) && v > 0)))
+      : [];
+    const effectivePlatformIds =
+      platformIds.length > 0 ? platformIds : (singlePlatformId ? [singlePlatformId] : []);
     const vendorId = body.vendorId ? Number(body.vendorId) : null;
-    if (!hostTypeId || (!platformId && !vendorId)) {
+    if (!hostTypeId || (effectivePlatformIds.length === 0 && !vendorId)) {
       return res.status(400).json({ error: "hostTypeId と platformId または vendorId は必須です。" });
     }
 
-    const maxRows = await query<{ maxOrder: number | null }>(
-      "SELECT MAX(orderIndex) AS maxOrder FROM PlatformLink WHERE hostTypeId = ? AND ((platformId <=> ?) AND (vendorId <=> ?)) AND deletedAt IS NULL",
-      [hostTypeId, platformId, vendorId]
-    );
-
-    const result = await execute(
-      `INSERT INTO PlatformLink
-       (title, urlTemplate, commentTemplate, platformId, vendorId, hostTypeId, visibility, ownerUserId, deviceBindingMode, orderIndex, createdBy, updatedBy, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, 'PUBLIC', NULL, ?, ?, ?, ?, NOW(3), NOW(3))`,
-      [
-        String(body.title || "").trim(),
-        String(body.urlTemplate || "").trim(),
-        body.commentTemplate ? String(body.commentTemplate) : null,
-        platformId,
-        vendorId,
-        hostTypeId,
-        body.deviceBindingMode === "EXCLUDE_FROM_DEVICE" ? "EXCLUDE_FROM_DEVICE" : "INCLUDE_IN_DEVICE",
-        Number(maxRows[0]?.maxOrder ?? 0) + 1,
-        actorName,
-        actorName
-      ]
-    );
-
     const tags = await ensureLinkTags(Array.isArray(body.tags) ? body.tags : []);
-    for (const t of tags) {
-      await execute("INSERT IGNORE INTO PlatformLinkTag (platformLinkId, tagId) VALUES (?, ?)", [result.insertId, t.id]);
+    const createdIds: number[] = [];
+
+    if (effectivePlatformIds.length > 0) {
+      for (const platformId of effectivePlatformIds) {
+        const maxRows = await query<{ maxOrder: number | null }>(
+          "SELECT MAX(orderIndex) AS maxOrder FROM PlatformLink WHERE hostTypeId = ? AND ((platformId <=> ?) AND (vendorId <=> NULL)) AND deletedAt IS NULL",
+          [hostTypeId, platformId]
+        );
+        const result = await execute(
+          `INSERT INTO PlatformLink
+           (title, urlTemplate, commentTemplate, platformId, vendorId, hostTypeId, visibility, ownerUserId, deviceBindingMode, orderIndex, createdBy, updatedBy, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, NULL, ?, 'PUBLIC', NULL, ?, ?, ?, ?, NOW(3), NOW(3))`,
+          [
+            String(body.title || "").trim(),
+            String(body.urlTemplate || "").trim(),
+            body.commentTemplate ? String(body.commentTemplate) : null,
+            platformId,
+            hostTypeId,
+            body.deviceBindingMode === "EXCLUDE_FROM_DEVICE" ? "EXCLUDE_FROM_DEVICE" : "INCLUDE_IN_DEVICE",
+            Number(maxRows[0]?.maxOrder ?? 0) + 1,
+            actorName,
+            actorName
+          ]
+        );
+        createdIds.push(result.insertId);
+      }
+    } else {
+      const maxRows = await query<{ maxOrder: number | null }>(
+        "SELECT MAX(orderIndex) AS maxOrder FROM PlatformLink WHERE hostTypeId = ? AND ((platformId <=> NULL) AND (vendorId <=> ?)) AND deletedAt IS NULL",
+        [hostTypeId, vendorId]
+      );
+      const result = await execute(
+        `INSERT INTO PlatformLink
+         (title, urlTemplate, commentTemplate, platformId, vendorId, hostTypeId, visibility, ownerUserId, deviceBindingMode, orderIndex, createdBy, updatedBy, createdAt, updatedAt)
+         VALUES (?, ?, ?, NULL, ?, ?, 'PUBLIC', NULL, ?, ?, ?, ?, NOW(3), NOW(3))`,
+        [
+          String(body.title || "").trim(),
+          String(body.urlTemplate || "").trim(),
+          body.commentTemplate ? String(body.commentTemplate) : null,
+          vendorId,
+          hostTypeId,
+          body.deviceBindingMode === "EXCLUDE_FROM_DEVICE" ? "EXCLUDE_FROM_DEVICE" : "INCLUDE_IN_DEVICE",
+          Number(maxRows[0]?.maxOrder ?? 0) + 1,
+          actorName,
+          actorName
+        ]
+      );
+      createdIds.push(result.insertId);
     }
 
-    return res.status(200).json({ id: result.insertId });
+    for (const createdId of createdIds) {
+      for (const t of tags) {
+        await execute("INSERT IGNORE INTO PlatformLinkTag (platformLinkId, tagId) VALUES (?, ?)", [createdId, t.id]);
+      }
+    }
+
+    return res.status(200).json({ id: createdIds[0], ids: createdIds });
   }
 
   return res.status(405).json({ error: "Method not allowed" });

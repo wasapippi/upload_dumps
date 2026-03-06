@@ -189,6 +189,7 @@ export const FixedPlatformPreviewModal = ({
       const params = new URLSearchParams();
       params.set("platformId", platformId);
       if (hostTypeId) params.set("hostTypeId", hostTypeId);
+      if (hostName?.trim()) params.set("hostName", hostName.trim());
       const res = await fetch(`/api/platforms/platform-links?${params.toString()}`);
       if (!res.ok) {
         setAllLinks([]);
@@ -378,6 +379,7 @@ export const FixedPlatformPreviewModal = ({
     const params = new URLSearchParams();
     params.set("platformId", platformId);
     if (hostTypeId) params.set("hostTypeId", hostTypeId);
+    if (hostName?.trim()) params.set("hostName", hostName.trim());
     if (selectedLinkTagIds.length > 0) {
       params.set("tagIds", selectedLinkTagIds.join(","));
       params.set("tagMode", linkTagMode);

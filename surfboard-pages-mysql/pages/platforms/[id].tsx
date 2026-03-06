@@ -55,6 +55,7 @@ export default function PlatformDetailPage() {
   const [editorCategoryId, setEditorCategoryId] = useState<string>("");
   const [editorHostTypeId, setEditorHostTypeId] = useState<string>("");
   const [editorPlatformId, setEditorPlatformId] = useState<string>("");
+  const [editorPlatformIds, setEditorPlatformIds] = useState<string[]>([]);
   const [editorVendorId, setEditorVendorId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
@@ -223,6 +224,8 @@ export default function PlatformDetailPage() {
   const handleEditorCategoryChange = (value: string) => {
     setEditorCategoryId(value);
     setEditorHostTypeId("");
+    setEditorPlatformId("");
+    setEditorPlatformIds([]);
   };
 
   const openCreateLink = () => {
@@ -236,6 +239,7 @@ export default function PlatformDetailPage() {
     setEditorCategoryId(selectedHostType ? String(selectedHostType.categoryId) : "");
     setEditorHostTypeId(hostTypeId);
     setEditorPlatformId(String(platformId));
+    setEditorPlatformIds(platformId ? [String(platformId)] : []);
     setEditorVendorId(selectedPlatform?.vendor?.id ? String(selectedPlatform.vendor.id) : "");
     setError(null);
     setOpenLinkModal(true);
@@ -260,6 +264,7 @@ export default function PlatformDetailPage() {
     setEditorCategoryId(fallbackCategoryId ? String(fallbackCategoryId) : "");
     setEditorHostTypeId(String(link.hostTypeId ?? hostTypeId));
     setEditorPlatformId(String(link.platformId ?? platformId));
+    setEditorPlatformIds(link.platformId ? [String(link.platformId)] : [String(platformId)]);
     setEditorVendorId(String(link.vendorId ?? selectedPlatform?.vendor?.id ?? ""));
     setError(null);
     setOpenLinkModal(true);
@@ -272,13 +277,18 @@ export default function PlatformDetailPage() {
       return;
     }
     const selectedHostTypeId = Number(editorHostTypeId || hostTypeId || 0);
-    const selectedPlatformId = Number(editorPlatformId || platformId || 0);
     const selectedVendorId = Number(editorVendorId || selectedPlatform?.vendor?.id || 0) || null;
     if (!selectedHostTypeId) {
       setError("ホスト種別を選択してください。");
       return;
     }
-    if (linkScope === "platform" && !selectedPlatformId) {
+    const selectedPlatformIds =
+      linkScope === "platform"
+        ? (editingLink
+            ? [String(Number(editorPlatformId || editingLink?.platformId || platformId || 0))].filter((id) => id !== "0")
+            : editorPlatformIds)
+        : [];
+    if (linkScope === "platform" && selectedPlatformIds.length === 0) {
       setError("機種名を選択してください。");
       return;
     }
@@ -291,7 +301,8 @@ export default function PlatformDetailPage() {
       urlTemplate,
       commentTemplate: commentTemplate || null,
       tags,
-      platformId: linkScope === "platform" ? selectedPlatformId : null,
+      platformId: linkScope === "platform" ? Number(selectedPlatformIds[0] || 0) || null : null,
+      platformIds: linkScope === "platform" ? selectedPlatformIds.map((id) => Number(id)).filter((id) => id > 0) : [],
       vendorId: linkScope === "vendor" ? selectedVendorId : null,
       hostTypeId: selectedHostTypeId,
       visibility: "PUBLIC",
@@ -466,10 +477,17 @@ export default function PlatformDetailPage() {
         onCategoryChange={handleEditorCategoryChange}
         hostTypes={editorHostTypes}
         hostTypeId={editorHostTypeId}
-        onHostTypeChange={setEditorHostTypeId}
+        onHostTypeChange={(value) => {
+          setEditorHostTypeId(value);
+          setEditorPlatformId("");
+          setEditorPlatformIds([]);
+        }}
         platforms={editorPlatforms}
         platformId={editorPlatformId}
         onPlatformChange={setEditorPlatformId}
+        platformIds={editorPlatformIds}
+        onPlatformIdsChange={setEditorPlatformIds}
+        multiPlatformSelect={!editingLink && linkScope === "platform"}
         vendors={selectedPlatform?.vendor ? [{ id: selectedPlatform.vendor.id, name: selectedPlatform.vendor.name }] : []}
         vendorId={editorVendorId}
         onVendorChange={setEditorVendorId}
