@@ -84,10 +84,14 @@ export default function CommandsPage() {
     }
 
     const selectedCategoryId = Number(categoryId);
-    return platforms.filter((platform) =>
-      (platform.hostTypeLinks ?? []).some((link) => link.hostType?.categoryId === selectedCategoryId)
+    const selectableHostTypeIds = new Set(
+      hostTypes.filter((hostType) => hostType.categoryId === selectedCategoryId).map((hostType) => hostType.id)
     );
-  }, [categoryId, hostTypeId, platforms]);
+    if (selectableHostTypeIds.size === 0) return platforms;
+    return platforms.filter((platform) =>
+      (platform.hostTypeLinks ?? []).some((link) => selectableHostTypeIds.has(link.hostTypeId))
+    );
+  }, [categoryId, hostTypeId, hostTypes, platforms]);
 
   useEffect(() => {
     if (!hostTypeId) return;

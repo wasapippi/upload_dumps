@@ -11,8 +11,8 @@ type Props = {
   modalTitle?: string;
   title: string;
   onTitleChange: (value: string) => void;
-  linkScope: "platform" | "vendor";
-  onLinkScopeChange: (value: "platform" | "vendor") => void;
+  linkScope: "platform" | "vendor" | "common";
+  onLinkScopeChange: (value: "platform" | "vendor" | "common") => void;
   urlTemplate: string;
   onUrlTemplateChange: (value: string) => void;
   commentTemplate: string;
@@ -115,6 +115,14 @@ export const PlatformLinkEditorModal = ({
         <Group gap="xs">
           <Badge
             style={badgeStyle}
+            variant={linkScope === "common" ? "filled" : "light"}
+            color={linkScope === "common" ? "violet" : "gray"}
+            onClick={() => onLinkScopeChange("common")}
+          >
+            全装置共通
+          </Badge>
+          <Badge
+            style={badgeStyle}
             variant={linkScope === "platform" ? "filled" : "light"}
             color={linkScope === "platform" ? "blue" : "gray"}
             onClick={() => onLinkScopeChange("platform")}
@@ -132,7 +140,7 @@ export const PlatformLinkEditorModal = ({
         </Group>
         {showTargetSelectors ? (
           <>
-            {linkScope === "vendor" ? (
+            {linkScope === "common" ? null : linkScope === "vendor" ? (
               <>
                 <Text size="sm" fw={600}>ベンダ</Text>
                 <Group gap="xs" wrap="wrap">

@@ -61,6 +61,12 @@ const listLinks = async (req: NextApiRequest) => {
   const hostTypeId = Number(req.query.hostTypeId || 0) || null;
   const platformId = Number(req.query.platformId || 0) || null;
   const vendorId = Number(req.query.vendorId || 0) || null;
+  const scope = req.query.scope === "common" ? "common" : req.query.scope === "vendor" ? "vendor" : "normal";
+  const tagMode = req.query.tagMode === "or" ? "or" : "and";
+  const tagIds = String(req.query.tagIds || "")
+    .split(",")
+    .map((v) => Number(v))
+    .filter((v) => Number.isInteger(v) && v > 0);
 
   const where: string[] = ["pl.deletedAt IS NULL"];
   const params: unknown[] = [];
@@ -73,7 +79,15 @@ const listLinks = async (req: NextApiRequest) => {
     where.push("pl.hostTypeId = ?");
     params.push(hostTypeId);
   }
-  if (platformId) {
+  if (scope === "vendor") {
+    where.push("pl.vendorId IS NOT NULL", "pl.platformId IS NULL");
+    if (vendorId) {
+      where.push("pl.vendorId = ?");
+      params.push(vendorId);
+    }
+  } else if (scope === "common") {
+    where.push("pl.platformId IS NULL", "pl.vendorId IS NULL");
+  } else if (platformId) {
     const selectedPlatform = await query<{ vendorId: number }>("SELECT vendorId FROM Platform WHERE id = ?", [platformId]);
     const selectedVendorId = selectedPlatform[0]?.vendorId ?? null;
     where.push(
@@ -88,6 +102,36 @@ const listLinks = async (req: NextApiRequest) => {
   } else if (vendorId) {
     where.push("pl.vendorId = ?", "pl.platformId IS NULL");
     params.push(vendorId);
+  }
+
+  if (tagIds.length > 0) {
+    if (tagMode === "or") {
+      where.push(
+        `EXISTS (
+          SELECT 1
+          FROM PlatformLinkTag plt
+          INNER JOIN Tag t ON t.id = plt.tagId
+          WHERE plt.platformLinkId = pl.id
+            AND t.kind='LINK'
+            AND plt.tagId IN (${tagIds.map(() => "?").join(",")})
+        )`
+      );
+      params.push(...tagIds);
+    } else {
+      for (const tagId of tagIds) {
+        where.push(
+          `EXISTS (
+            SELECT 1
+            FROM PlatformLinkTag plt
+            INNER JOIN Tag t ON t.id = plt.tagId
+            WHERE plt.platformLinkId = pl.id
+              AND t.kind='LINK'
+              AND plt.tagId = ?
+          )`
+        );
+        params.push(tagId);
+      }
+    }
   }
 
   const rows = await query<Row>(
@@ -171,8 +215,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const effectivePlatformIds =
       platformIds.length > 0 ? platformIds : (singlePlatformId ? [singlePlatformId] : []);
     const vendorId = body.vendorId ? Number(body.vendorId) : null;
-    if (!hostTypeId || (effectivePlatformIds.length === 0 && !vendorId)) {
-      return res.status(400).json({ error: "hostTypeId と platformId または vendorId は必須です。" });
+    if (!hostTypeId) {
+      return res.status(400).json({ error: "hostTypeId は必須です。" });
     }
 
     const tags = await ensureLinkTags(Array.isArray(body.tags) ? body.tags : []);

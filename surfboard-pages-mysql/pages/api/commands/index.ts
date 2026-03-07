@@ -67,6 +67,11 @@ const listCommands = async (req: NextApiRequest) => {
   const vendorId = Number(req.query.vendorId || 0) || null;
   const scope = req.query.scope === "vendor" ? "vendor" : "normal";
   const forDevice = req.query.forDevice === "1";
+  const tagMode = req.query.tagMode === "or" ? "or" : "and";
+  const tagIds = String(req.query.tagIds || "")
+    .split(",")
+    .map((v) => Number(v))
+    .filter((v) => Number.isInteger(v) && v > 0);
 
   const where: string[] = ["c.deletedAt IS NULL"];
   const params: unknown[] = [];
@@ -105,6 +110,36 @@ const listCommands = async (req: NextApiRequest) => {
       );
       params.push(platformId);
       if (selectedVendorId) params.push(selectedVendorId);
+    }
+  }
+
+  if (tagIds.length > 0) {
+    if (tagMode === "or") {
+      where.push(
+        `EXISTS (
+          SELECT 1
+          FROM CommandTag ct
+          INNER JOIN Tag t ON t.id = ct.tagId
+          WHERE ct.commandId = c.id
+            AND t.kind='COMMAND'
+            AND ct.tagId IN (${tagIds.map(() => "?").join(",")})
+        )`
+      );
+      params.push(...tagIds);
+    } else {
+      for (const tagId of tagIds) {
+        where.push(
+          `EXISTS (
+            SELECT 1
+            FROM CommandTag ct
+            INNER JOIN Tag t ON t.id = ct.tagId
+            WHERE ct.commandId = c.id
+              AND t.kind='COMMAND'
+              AND ct.tagId = ?
+          )`
+        );
+        params.push(tagId);
+      }
     }
   }
 
