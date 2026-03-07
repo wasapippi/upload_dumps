@@ -2,6 +2,7 @@
 
 import { Badge, Button, Group, Modal, Stack, TagsInput, Text, TextInput, Textarea } from "@mantine/core";
 import { HostType, Platform, Tag } from "./types";
+import { sortByBadgeOrder, sortByName } from "@/lib/badgeOrder";
 
 const badgeStyle = { cursor: "pointer" } as const;
 
@@ -88,6 +89,12 @@ export const PlatformLinkEditorModal = ({
   onDelete,
   onSave
 }: Props) => {
+  const sortedCategories = sortByBadgeOrder(categories);
+  const sortedHostTypes = sortByBadgeOrder(hostTypes);
+  const sortedPlatforms = sortByName(platforms);
+  const sortedVendors = sortByName(vendors);
+  const sortedTagSuggestions = sortByName(tagSuggestions);
+
   return (
     <Modal opened={opened} onClose={onClose} title={modalTitle ?? "リンク編集"} size="xl">
       <Stack gap="sm">
@@ -144,7 +151,7 @@ export const PlatformLinkEditorModal = ({
               <>
                 <Text size="sm" fw={600}>ベンダ</Text>
                 <Group gap="xs" wrap="wrap">
-                  {vendors.map((item) => (
+                  {sortedVendors.map((item) => (
                     <Badge
                       key={item.id}
                       style={badgeStyle}
@@ -161,7 +168,7 @@ export const PlatformLinkEditorModal = ({
               <>
                 <Text size="sm" fw={600}>分類</Text>
                 <Group gap="xs" wrap="wrap">
-                  {categories.map((item) => (
+                  {sortedCategories.map((item) => (
                     <Badge
                       key={item.id}
                       style={badgeStyle}
@@ -175,7 +182,7 @@ export const PlatformLinkEditorModal = ({
                 </Group>
                 <Text size="sm" fw={600}>ホスト種別</Text>
                 <Group gap="xs" wrap="wrap">
-                  {hostTypes.map((item) => (
+                  {sortedHostTypes.map((item) => (
                     <Badge
                       key={item.id}
                       style={badgeStyle}
@@ -189,7 +196,7 @@ export const PlatformLinkEditorModal = ({
                 </Group>
                 <Text size="sm" fw={600}>機種名</Text>
                 <Group gap="xs" wrap="wrap">
-                  {platforms.map((item) => (
+                  {sortedPlatforms.map((item) => (
                     <Badge
                       key={item.id}
                       style={badgeStyle}
@@ -227,7 +234,7 @@ export const PlatformLinkEditorModal = ({
           label="タグ"
           placeholder="タグ入力"
           value={tags}
-          data={tagSuggestions.map((tag) => tag.name)}
+          data={sortedTagSuggestions.map((tag) => tag.name)}
           searchValue={tagInput}
           onSearchChange={onTagInputChange}
           onChange={onTagsChange}

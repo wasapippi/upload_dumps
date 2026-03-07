@@ -31,6 +31,7 @@ export type HostType = {
   category?: {
     id: number;
     name: string;
+    groupOrderIndex?: number;
   };
 };
 

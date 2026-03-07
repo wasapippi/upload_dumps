@@ -15,6 +15,7 @@ import {
   Tooltip
 } from "@mantine/core";
 import { Command, HostType, Platform, Tag } from "./types";
+import { sortByBadgeOrder, sortByName } from "@/lib/badgeOrder";
 import {
   applyBracketTemplate,
   extractBracketVariables,
@@ -127,33 +128,41 @@ export const CommandDetailModal = ({
   }, [variables]);
 
   const categories = useMemo(() => {
-    const map = new Map<number, { id: number; name: string }>();
+    const map = new Map<number, { id: number; name: string; groupOrderIndex?: number }>();
     for (const hostType of hostTypes) {
       if (!hostType.category) continue;
-      map.set(hostType.category.id, { id: hostType.category.id, name: hostType.category.name });
+      map.set(hostType.category.id, {
+        id: hostType.category.id,
+        name: hostType.category.name,
+        groupOrderIndex: hostType.category.groupOrderIndex
+      });
     }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+    return sortByBadgeOrder(Array.from(map.values()));
   }, [hostTypes]);
 
   const filteredHostTypes = useMemo(() => {
     if (!categoryId) return hostTypes;
     const id = Number(categoryId);
-    return hostTypes.filter((hostType) => hostType.categoryId === id);
+    return sortByBadgeOrder(hostTypes.filter((hostType) => hostType.categoryId === id));
   }, [categoryId, hostTypes]);
 
   const filteredPlatforms = useMemo(() => {
-    if (!hostTypeId && !categoryId) return platforms;
+    if (!hostTypeId && !categoryId) return sortByName(platforms);
     if (hostTypeId) {
       const selectedHostTypeId = Number(hostTypeId);
-      return platforms.filter((platform) =>
+      return sortByName(platforms.filter((platform) =>
         (platform.hostTypeLinks ?? []).some((link) => link.hostTypeId === selectedHostTypeId)
-      );
+      ));
     }
     const selectedCategoryId = Number(categoryId);
-    return platforms.filter((platform) =>
-      (platform.hostTypeLinks ?? []).some((link) => link.hostType?.categoryId === selectedCategoryId)
+    const selectableHostTypeIds = new Set(
+      hostTypes.filter((hostType) => hostType.categoryId === selectedCategoryId).map((hostType) => hostType.id)
     );
-  }, [categoryId, hostTypeId, platforms]);
+    if (selectableHostTypeIds.size === 0) return sortByName(platforms);
+    return sortByName(platforms.filter((platform) =>
+      (platform.hostTypeLinks ?? []).some((link) => selectableHostTypeIds.has(link.hostTypeId))
+    ));
+  }, [categoryId, hostTypeId, hostTypes, platforms]);
 
   const availableVendors = useMemo(() => {
     if (vendors.length > 0) {
@@ -164,7 +173,7 @@ export const CommandDetailModal = ({
       if (!platform.vendor) continue;
       map.set(platform.vendor.id, platform.vendor);
     }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+    return sortByName(Array.from(map.values()));
   }, [platforms, vendors]);
 
   useEffect(() => {

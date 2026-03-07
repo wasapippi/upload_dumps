@@ -337,16 +337,28 @@ export const FixedPlatformPreviewModal = ({
   }, [editorCategoryId, hostTypes]);
 
   const filteredEditorPlatforms = useMemo(() => {
-    if (!editorHostTypeId) return platforms;
-    const selectedHostTypeId = Number(editorHostTypeId);
-    const matched = platforms.filter((platform) =>
-      (platform.hostTypeLinks ?? []).some((link) => link.hostTypeId === selectedHostTypeId)
-    );
+    let matched = platforms;
+    if (editorHostTypeId) {
+      const selectedHostTypeId = Number(editorHostTypeId);
+      matched = platforms.filter((platform) =>
+        (platform.hostTypeLinks ?? []).some((link) => link.hostTypeId === selectedHostTypeId)
+      );
+    } else if (editorCategoryId) {
+      const selectedCategoryId = Number(editorCategoryId);
+      const selectableHostTypeIds = new Set(
+        hostTypes.filter((hostType) => hostType.categoryId === selectedCategoryId).map((hostType) => hostType.id)
+      );
+      if (selectableHostTypeIds.size > 0) {
+        matched = platforms.filter((platform) =>
+          (platform.hostTypeLinks ?? []).some((link) => selectableHostTypeIds.has(link.hostTypeId))
+        );
+      }
+    }
     if (!editorPlatformId) return matched;
     if (matched.some((platform) => String(platform.id) === editorPlatformId)) return matched;
     const selected = platforms.find((platform) => String(platform.id) === editorPlatformId);
     return selected ? [selected, ...matched] : matched;
-  }, [editorHostTypeId, platforms]);
+  }, [editorCategoryId, editorHostTypeId, editorPlatformId, hostTypes, platforms]);
 
   useEffect(() => {
     if (linkScope !== "platform") return;

@@ -75,12 +75,22 @@ export default function PlatformDetailPage() {
     return hostTypes.filter((item) => idSet.has(item.id));
   }, [hostTypes, selectedPlatform]);
   const editorPlatforms = useMemo(() => {
-    if (!editorHostTypeId) return platforms;
-    const selectedHostTypeId = Number(editorHostTypeId);
-    return platforms.filter((platform) =>
-      (platform.hostTypeLinks ?? []).some((link) => link.hostTypeId === selectedHostTypeId)
+    if (!editorHostTypeId && !editorCategoryId) return platforms;
+    if (editorHostTypeId) {
+      const selectedHostTypeId = Number(editorHostTypeId);
+      return platforms.filter((platform) =>
+        (platform.hostTypeLinks ?? []).some((link) => link.hostTypeId === selectedHostTypeId)
+      );
+    }
+    const selectedCategoryId = Number(editorCategoryId);
+    const selectableHostTypeIds = new Set(
+      hostTypes.filter((hostType) => hostType.categoryId === selectedCategoryId).map((hostType) => hostType.id)
     );
-  }, [editorHostTypeId, platforms]);
+    if (selectableHostTypeIds.size === 0) return platforms;
+    return platforms.filter((platform) =>
+      (platform.hostTypeLinks ?? []).some((link) => selectableHostTypeIds.has(link.hostTypeId))
+    );
+  }, [editorCategoryId, editorHostTypeId, hostTypes, platforms]);
   const editorHostTypes = useMemo(() => {
     if (!editorCategoryId) return hostTypes;
     const selectedCategoryId = Number(editorCategoryId);

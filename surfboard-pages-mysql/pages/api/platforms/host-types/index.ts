@@ -10,8 +10,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       categoryId: number;
       groupOrderIndex: number;
       categoryName: string;
+      categoryGroupOrderIndex: number;
     }>(
-      `SELECT ht.id, ht.name, ht.categoryId, ht.groupOrderIndex, c.name AS categoryName
+      `SELECT ht.id, ht.name, ht.categoryId, ht.groupOrderIndex, c.name AS categoryName, c.groupOrderIndex AS categoryGroupOrderIndex
        FROM HostType ht
        INNER JOIN Category c ON c.id = ht.categoryId
        ORDER BY ht.groupOrderIndex ASC, ht.id ASC`
@@ -22,7 +23,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         name: x.name,
         categoryId: x.categoryId,
         groupOrderIndex: x.groupOrderIndex,
-        category: { id: x.categoryId, name: x.categoryName }
+        category: { id: x.categoryId, name: x.categoryName, groupOrderIndex: x.categoryGroupOrderIndex }
       }))
     );
   }
