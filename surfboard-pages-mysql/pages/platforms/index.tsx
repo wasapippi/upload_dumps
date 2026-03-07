@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Badge, Group, Paper, SimpleGrid, Stack, Text, TextInput } from "@mantine/core";
+import { Badge, Button, Group, Paper, SimpleGrid, Stack, Text, TextInput } from "@mantine/core";
+import { IconLink, IconSitemap, IconTerminal2 } from "@tabler/icons-react";
 import { HostType, Platform } from "@/components/commands/types";
 
 const badgeStyle = { cursor: "pointer" } as const;
@@ -61,8 +62,9 @@ export default function PlatformsPage() {
         const selectedHostTypeId = Number(hostTypeId);
         return (platform.hostTypeLinks ?? []).some((link) => link.hostTypeId === selectedHostTypeId);
       }
-      const selectedCategoryId = Number(categoryId);
-      return (platform.hostTypeLinks ?? []).some((link) => link.hostType?.categoryId === selectedCategoryId);
+      const selectableHostTypeIds = new Set(filteredHostTypes.map((item) => item.id));
+      if (selectableHostTypeIds.size === 0) return true;
+      return (platform.hostTypeLinks ?? []).some((link) => selectableHostTypeIds.has(link.hostTypeId));
     });
 
     if (!keyword) return byTaxonomy;
@@ -70,22 +72,43 @@ export default function PlatformsPage() {
       const base = `${platform.vendor?.name ?? ""} ${platform.name}`.toLowerCase();
       return base.includes(keyword);
     });
-  }, [categoryId, hostTypeId, platforms, q]);
+  }, [categoryId, filteredHostTypes, hostTypeId, platforms, q]);
 
   return (
     <Stack p="md" gap="md">
       <Text fw={700} size="xl">機種一覧</Text>
 
       <Group gap="xs">
-        <Badge component={Link} href="/platforms/commands" variant="light" color="blue">
+        <Button
+          component={Link}
+          href="/platforms/commands"
+          variant="light"
+          color="blue"
+          size="xs"
+          leftSection={<IconTerminal2 size={14} />}
+        >
           コマンド一覧
-        </Badge>
-        <Badge component={Link} href="/platforms/links" variant="light" color="blue">
+        </Button>
+        <Button
+          component={Link}
+          href="/platforms/links"
+          variant="light"
+          color="blue"
+          size="xs"
+          leftSection={<IconLink size={14} />}
+        >
           関連リンク一覧
-        </Badge>
-        <Badge component={Link} href="/taxonomy" variant="light" color="grape">
+        </Button>
+        <Button
+          component={Link}
+          href="/taxonomy"
+          variant="light"
+          color="grape"
+          size="xs"
+          leftSection={<IconSitemap size={14} />}
+        >
           分類/機種名管理
-        </Badge>
+        </Button>
       </Group>
 
       <TextInput
