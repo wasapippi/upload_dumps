@@ -51,7 +51,7 @@ export default function PlatformDetailPage() {
   const [deviceBindingMode, setDeviceBindingMode] = useState<"INCLUDE_IN_DEVICE" | "EXCLUDE_FROM_DEVICE">(
     "INCLUDE_IN_DEVICE"
   );
-  const [linkScope, setLinkScope] = useState<"platform" | "vendor">("platform");
+  const [linkScope, setLinkScope] = useState<"platform" | "vendor" | "common">("platform");
   const [editorCategoryId, setEditorCategoryId] = useState<string>("");
   const [editorHostTypeId, setEditorHostTypeId] = useState<string>("");
   const [editorPlatformId, setEditorPlatformId] = useState<string>("");
@@ -162,12 +162,23 @@ export default function PlatformDetailPage() {
 
   const fetchAvailableLinkTags = useCallback(async () => {
     if (!platformId || !hostTypeId) return;
-    const params = new URLSearchParams();
-    params.set("platformId", String(platformId));
-    params.set("hostTypeId", hostTypeId);
-    const res = await fetch(`/api/platforms/platform-links/tags?${params.toString()}`);
-    if (!res.ok) return;
-    const tags = (await res.json()) as Tag[];
+    const normalParams = new URLSearchParams();
+    normalParams.set("platformId", String(platformId));
+    normalParams.set("hostTypeId", hostTypeId);
+    const commonParams = new URLSearchParams();
+    commonParams.set("platformId", String(platformId));
+    commonParams.set("scope", "common");
+
+    const [normalRes, commonRes] = await Promise.all([
+      fetch(`/api/platforms/platform-links/tags?${normalParams.toString()}`),
+      fetch(`/api/platforms/platform-links/tags?${commonParams.toString()}`)
+    ]);
+    if (!normalRes.ok && !commonRes.ok) return;
+    const normalTags = normalRes.ok ? ((await normalRes.json()) as Tag[]) : [];
+    const commonTags = commonRes.ok ? ((await commonRes.json()) as Tag[]) : [];
+    const merged = new Map<number, Tag>();
+    [...normalTags, ...commonTags].forEach((tag) => merged.set(tag.id, tag));
+    const tags = Array.from(merged.values());
     setAvailableLinkTags(tags);
     const tagIdSet = new Set(tags.map((tag) => tag.id));
     setSelectedLinkTagIds((prev) => {
@@ -181,17 +192,32 @@ export default function PlatformDetailPage() {
 
   const fetchLinks = useCallback(async () => {
     if (!platformId || !hostTypeId) return;
-    const params = new URLSearchParams();
-    params.set("platformId", String(platformId));
-    params.set("hostTypeId", hostTypeId);
+    const normalParams = new URLSearchParams();
+    normalParams.set("platformId", String(platformId));
+    normalParams.set("hostTypeId", hostTypeId);
+    const commonParams = new URLSearchParams();
+    commonParams.set("platformId", String(platformId));
+    commonParams.set("scope", "common");
     if (selectedLinkTagIds.length > 0) {
-      params.set("tagIds", selectedLinkTagIds.join(","));
-      params.set("tagMode", linkTagMode);
+      normalParams.set("tagIds", selectedLinkTagIds.join(","));
+      normalParams.set("tagMode", linkTagMode);
+      commonParams.set("tagIds", selectedLinkTagIds.join(","));
+      commonParams.set("tagMode", linkTagMode);
     }
-    if (linkHostName.trim()) params.set("hostName", linkHostName.trim());
-    const res = await fetch(`/api/platforms/platform-links?${params.toString()}`);
-    if (!res.ok) return;
-    setLinks(await res.json());
+    if (linkHostName.trim()) {
+      normalParams.set("hostName", linkHostName.trim());
+      commonParams.set("hostName", linkHostName.trim());
+    }
+    const [normalRes, commonRes] = await Promise.all([
+      fetch(`/api/platforms/platform-links?${normalParams.toString()}`),
+      fetch(`/api/platforms/platform-links?${commonParams.toString()}`)
+    ]);
+    if (!normalRes.ok && !commonRes.ok) return;
+    const normalLinks = normalRes.ok ? ((await normalRes.json()) as PlatformLink[]) : [];
+    const commonLinks = commonRes.ok ? ((await commonRes.json()) as PlatformLink[]) : [];
+    const merged = new Map<number, PlatformLink>();
+    [...normalLinks, ...commonLinks].forEach((link) => merged.set(link.id, link));
+    setLinks(Array.from(merged.values()));
   }, [hostTypeId, linkHostName, linkTagMode, platformId, selectedLinkTagIds]);
 
   useEffect(() => {
@@ -227,6 +253,23 @@ export default function PlatformDetailPage() {
     setEditorPlatformId("");
     setEditorPlatformIds([]);
   };
+  const handleLinkScopeChange = (value: "platform" | "vendor" | "common") => {
+    setLinkScope(value);
+    if (value === "common") {
+      setEditorCategoryId("");
+      setEditorHostTypeId("");
+      setEditorPlatformId("");
+      setEditorPlatformIds([]);
+      setEditorVendorId("");
+      return;
+    }
+    if (value === "vendor") {
+      setEditorPlatformId("");
+      setEditorPlatformIds([]);
+      return;
+    }
+    setEditorVendorId("");
+  };
 
   const openCreateLink = () => {
     setEditingLink(null);
@@ -235,7 +278,7 @@ export default function PlatformDetailPage() {
     setCommentTemplate("");
     setTags([]);
     setDeviceBindingMode("INCLUDE_IN_DEVICE");
-    setLinkScope("platform");
+    handleLinkScopeChange("platform");
     setEditorCategoryId(selectedHostType ? String(selectedHostType.categoryId) : "");
     setEditorHostTypeId(hostTypeId);
     setEditorPlatformId(String(platformId));
@@ -256,7 +299,7 @@ export default function PlatformDetailPage() {
         ? "EXCLUDE_FROM_DEVICE"
         : "INCLUDE_IN_DEVICE"
     );
-    setLinkScope(link.vendorId && !link.platformId ? "vendor" : "platform");
+    handleLinkScopeChange(link.vendorId && !link.platformId ? "vendor" : link.platformId ? "platform" : "common");
     const fallbackCategoryId =
       link.hostType?.categoryId ??
       hostTypes.find((item) => item.id === link.hostTypeId)?.categoryId ??
@@ -276,9 +319,17 @@ export default function PlatformDetailPage() {
       setError("タイトルとURLテンプレートは必須です。");
       return;
     }
-    const selectedHostTypeId = Number(editorHostTypeId || hostTypeId || 0);
+    const commonHostTypeId = hostTypes.find((item) => item.name === "共通")?.id ?? null;
+    const selectedHostTypeId =
+      linkScope === "common"
+        ? Number(commonHostTypeId || 0)
+        : Number(editorHostTypeId || hostTypeId || 0);
     const selectedVendorId = Number(editorVendorId || selectedPlatform?.vendor?.id || 0) || null;
     if (!selectedHostTypeId) {
+      if (linkScope === "common") {
+        setError("共通ホスト種別が見つかりません。taxonomyで「共通」を作成してください。");
+        return;
+      }
       setError("ホスト種別を選択してください。");
       return;
     }
@@ -470,7 +521,7 @@ export default function PlatformDetailPage() {
         title={title}
         onTitleChange={setTitle}
         linkScope={linkScope}
-        onLinkScopeChange={setLinkScope}
+        onLinkScopeChange={handleLinkScopeChange}
         showTargetSelectors
         categories={categories}
         categoryId={editorCategoryId}

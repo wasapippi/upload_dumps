@@ -62,7 +62,7 @@ export const FixedPlatformPreviewModal = ({
   const [linkPage, setLinkPage] = useState(1);
   const [openLinkDetail, setOpenLinkDetail] = useState(false);
   const [editingLink, setEditingLink] = useState<PlatformLink | null>(null);
-  const [linkScope, setLinkScope] = useState<"platform" | "vendor">("platform");
+  const [linkScope, setLinkScope] = useState<"platform" | "vendor" | "common">("platform");
   const [deviceBindingMode, setDeviceBindingMode] = useState<"INCLUDE_IN_DEVICE" | "EXCLUDE_FROM_DEVICE">("INCLUDE_IN_DEVICE");
   const [linkTitle, setLinkTitle] = useState("");
   const [urlTemplate, setUrlTemplate] = useState("");
@@ -79,6 +79,21 @@ export const FixedPlatformPreviewModal = ({
   const [editorHostTypeId, setEditorHostTypeId] = useState<string>(hostTypeId);
   const [editorPlatformId, setEditorPlatformId] = useState<string>(platformId);
   const [editorVendorId, setEditorVendorId] = useState<string>(selectedPlatformVendorId ?? "");
+  const handleLinkScopeChange = (value: "platform" | "vendor" | "common") => {
+    setLinkScope(value);
+    if (value === "common") {
+      setEditorCategoryId("");
+      setEditorHostTypeId("");
+      setEditorPlatformId("");
+      setEditorVendorId("");
+      return;
+    }
+    if (value === "vendor") {
+      setEditorPlatformId("");
+      return;
+    }
+    setEditorVendorId("");
+  };
 
   useEffect(() => {
     if (!opened) return;
@@ -201,18 +216,28 @@ export const FixedPlatformPreviewModal = ({
         setSelectedLinkTagIds([]);
         return;
       }
-      const params = new URLSearchParams();
-      params.set("platformId", platformId);
-      if (hostTypeId) params.set("hostTypeId", hostTypeId);
-      const res = await fetch(`/api/platforms/platform-links/tags?${params.toString()}`);
-      if (!res.ok) {
+      const normalParams = new URLSearchParams();
+      normalParams.set("platformId", platformId);
+      if (hostTypeId) normalParams.set("hostTypeId", hostTypeId);
+      const commonParams = new URLSearchParams();
+      commonParams.set("platformId", platformId);
+      commonParams.set("scope", "common");
+      const [normalRes, commonRes] = await Promise.all([
+        fetch(`/api/platforms/platform-links/tags?${normalParams.toString()}`),
+        fetch(`/api/platforms/platform-links/tags?${commonParams.toString()}`)
+      ]);
+      if (!normalRes.ok && !commonRes.ok) {
         setAvailableLinkTags([]);
         setSelectedLinkTagIds([]);
         return;
       }
-      const data = (await res.json()) as Tag[];
-      setAvailableLinkTags(Array.isArray(data) ? data : []);
-      const idSet = new Set((Array.isArray(data) ? data : []).map((tag) => tag.id));
+      const normalTags = normalRes.ok ? ((await normalRes.json()) as Tag[]) : [];
+      const commonTags = commonRes.ok ? ((await commonRes.json()) as Tag[]) : [];
+      const merged = new Map<number, Tag>();
+      [...normalTags, ...commonTags].forEach((tag) => merged.set(tag.id, tag));
+      const data = Array.from(merged.values());
+      setAvailableLinkTags(data);
+      const idSet = new Set(data.map((tag) => tag.id));
       setSelectedLinkTagIds((prev) => {
         const next = prev.filter((id) => idSet.has(id));
         if (next.length === prev.length && next.every((id, index) => id === prev[index])) {
@@ -230,17 +255,27 @@ export const FixedPlatformPreviewModal = ({
         setAllLinks([]);
         return;
       }
-      const params = new URLSearchParams();
-      params.set("platformId", platformId);
-      if (hostTypeId) params.set("hostTypeId", hostTypeId);
-      if (hostName?.trim()) params.set("hostName", hostName.trim());
-      const res = await fetch(`/api/platforms/platform-links?${params.toString()}`);
-      if (!res.ok) {
+      const normalParams = new URLSearchParams();
+      normalParams.set("platformId", platformId);
+      if (hostTypeId) normalParams.set("hostTypeId", hostTypeId);
+      if (hostName?.trim()) normalParams.set("hostName", hostName.trim());
+      const commonParams = new URLSearchParams();
+      commonParams.set("platformId", platformId);
+      commonParams.set("scope", "common");
+      if (hostName?.trim()) commonParams.set("hostName", hostName.trim());
+      const [normalRes, commonRes] = await Promise.all([
+        fetch(`/api/platforms/platform-links?${normalParams.toString()}`),
+        fetch(`/api/platforms/platform-links?${commonParams.toString()}`)
+      ]);
+      if (!normalRes.ok && !commonRes.ok) {
         setAllLinks([]);
         return;
       }
-      const data = await res.json();
-      setAllLinks(Array.isArray(data) ? data : []);
+      const normalLinks = normalRes.ok ? ((await normalRes.json()) as PlatformLink[]) : [];
+      const commonLinks = commonRes.ok ? ((await commonRes.json()) as PlatformLink[]) : [];
+      const merged = new Map<number, PlatformLink>();
+      [...normalLinks, ...commonLinks].forEach((link) => merged.set(link.id, link));
+      setAllLinks(Array.from(merged.values()));
     };
     loadLinks();
   }, [hostTypeId, opened, platformId]);
@@ -304,10 +339,22 @@ export const FixedPlatformPreviewModal = ({
   const filteredEditorPlatforms = useMemo(() => {
     if (!editorHostTypeId) return platforms;
     const selectedHostTypeId = Number(editorHostTypeId);
-    return platforms.filter((platform) =>
+    const matched = platforms.filter((platform) =>
       (platform.hostTypeLinks ?? []).some((link) => link.hostTypeId === selectedHostTypeId)
     );
+    if (!editorPlatformId) return matched;
+    if (matched.some((platform) => String(platform.id) === editorPlatformId)) return matched;
+    const selected = platforms.find((platform) => String(platform.id) === editorPlatformId);
+    return selected ? [selected, ...matched] : matched;
   }, [editorHostTypeId, platforms]);
+
+  useEffect(() => {
+    if (linkScope !== "platform") return;
+    if (editorPlatformId) return;
+    if (platformId) {
+      setEditorPlatformId(platformId);
+    }
+  }, [editorPlatformId, linkScope, platformId]);
 
   const openDisplayedLinksInTabs = () => {
     const targets = pagedLinks
@@ -365,7 +412,7 @@ export const FixedPlatformPreviewModal = ({
 
   const openDetailModal = (link: PlatformLink) => {
     setEditingLink(link);
-    setLinkScope(link.vendorId && !link.platformId ? "vendor" : "platform");
+    handleLinkScopeChange(link.vendorId && !link.platformId ? "vendor" : link.platformId ? "platform" : "common");
     setDeviceBindingMode(link.deviceBindingMode === "EXCLUDE_FROM_DEVICE" ? "EXCLUDE_FROM_DEVICE" : "INCLUDE_IN_DEVICE");
     setLinkTitle(link.title ?? "");
     setUrlTemplate(link.urlTemplate ?? "");
@@ -387,7 +434,7 @@ export const FixedPlatformPreviewModal = ({
 
   const openCreateModal = () => {
     setEditingLink(null);
-    setLinkScope("platform");
+    handleLinkScopeChange("platform");
     setDeviceBindingMode("INCLUDE_IN_DEVICE");
     setLinkTitle("");
     setUrlTemplate("");
@@ -406,7 +453,11 @@ export const FixedPlatformPreviewModal = ({
 
   const saveLink = async () => {
     const numericPlatformId = Number(editorPlatformId || platformId || 0);
-    const numericHostTypeId = Number(editorHostTypeId || hostTypeId || 0);
+    const commonHostTypeId = hostTypes.find((item) => item.name === "共通")?.id ?? null;
+    const numericHostTypeId =
+      linkScope === "common"
+        ? Number(commonHostTypeId || 0)
+        : Number(editorHostTypeId || hostTypeId || 0);
     const numericVendorId =
       Number(editorVendorId || editingLink?.vendorId || selectedPlatformVendorId || 0) || null;
     const resolvedHostTypeId = Number(editingLink?.hostTypeId ?? numericHostTypeId);
@@ -420,6 +471,10 @@ export const FixedPlatformPreviewModal = ({
       return;
     }
     if (!Number.isFinite(resolvedHostTypeId) || resolvedHostTypeId <= 0) {
+      if (linkScope === "common") {
+        setSaveError("共通ホスト種別が見つかりません。taxonomyで「共通」を作成してください。");
+        return;
+      }
       setSaveError("ホスト種別を選択してください。");
       return;
     }
@@ -448,16 +503,28 @@ export const FixedPlatformPreviewModal = ({
     setOpenLinkDetail(false);
     const params = new URLSearchParams();
     params.set("platformId", platformId);
-    if (hostTypeId) params.set("hostTypeId", hostTypeId);
-    if (hostName?.trim()) params.set("hostName", hostName.trim());
+    const normalParams = new URLSearchParams(params);
+    if (hostTypeId) normalParams.set("hostTypeId", hostTypeId);
+    if (hostName?.trim()) normalParams.set("hostName", hostName.trim());
+    const commonParams = new URLSearchParams(params);
+    commonParams.set("scope", "common");
+    if (hostName?.trim()) commonParams.set("hostName", hostName.trim());
     if (selectedLinkTagIds.length > 0) {
-      params.set("tagIds", selectedLinkTagIds.join(","));
-      params.set("tagMode", linkTagMode);
+      normalParams.set("tagIds", selectedLinkTagIds.join(","));
+      normalParams.set("tagMode", linkTagMode);
+      commonParams.set("tagIds", selectedLinkTagIds.join(","));
+      commonParams.set("tagMode", linkTagMode);
     }
-    const listRes = await fetch(`/api/platforms/platform-links?${params.toString()}`);
-    if (listRes.ok) {
-      const data = await listRes.json();
-      setAllLinks(Array.isArray(data) ? data : []);
+    const [normalRes, commonRes] = await Promise.all([
+      fetch(`/api/platforms/platform-links?${normalParams.toString()}`),
+      fetch(`/api/platforms/platform-links?${commonParams.toString()}`)
+    ]);
+    if (normalRes.ok || commonRes.ok) {
+      const normalLinks = normalRes.ok ? ((await normalRes.json()) as PlatformLink[]) : [];
+      const commonLinks = commonRes.ok ? ((await commonRes.json()) as PlatformLink[]) : [];
+      const merged = new Map<number, PlatformLink>();
+      [...normalLinks, ...commonLinks].forEach((link) => merged.set(link.id, link));
+      setAllLinks(Array.from(merged.values()));
     }
   };
 
@@ -663,7 +730,7 @@ export const FixedPlatformPreviewModal = ({
                   {Array.from(hostGroup.platforms.entries()).map(([key, list]) => {
                     const platformLabel =
                       key === "common"
-                        ? "共通"
+                        ? "全装置共有"
                         : key.startsWith("vendor-")
                           ? `${list[0].vendor?.name ?? "ベンダ"} 共通`
                           : (list[0].platform?.name ?? "機種固有");
@@ -701,10 +768,10 @@ export const FixedPlatformPreviewModal = ({
                                 <Group gap={6}>
                                   <Badge
                                     size="xs"
-                                    color={link.vendorId && !link.platformId ? "cyan" : "gray"}
+                                    color={!link.vendorId && !link.platformId ? "violet" : link.vendorId && !link.platformId ? "cyan" : "gray"}
                                     variant="light"
                                   >
-                                    {link.vendorId && !link.platformId ? "ベンダ共通" : "機種固有"}
+                                    {!link.vendorId && !link.platformId ? "全装置共有" : link.vendorId && !link.platformId ? "ベンダ共通" : "機種固有"}
                                   </Badge>
                                   {(link.tags ?? []).map((item) => (
                                     <Badge key={`${link.id}-${item.tag.id}`} size="xs" color="teal" variant="light">
@@ -735,7 +802,7 @@ export const FixedPlatformPreviewModal = ({
         title={linkTitle}
         onTitleChange={setLinkTitle}
         linkScope={linkScope}
-        onLinkScopeChange={setLinkScope}
+        onLinkScopeChange={handleLinkScopeChange}
         showTargetSelectors
         categories={categories}
         categoryId={editorCategoryId}

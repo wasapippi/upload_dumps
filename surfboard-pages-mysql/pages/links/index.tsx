@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge, Button, Group, Paper, SegmentedControl, Stack, Text, TextInput, Tooltip } from "@mantine/core";
+import { ActionIcon, Badge, Button, Group, Paper, SegmentedControl, Stack, Text, TextInput, Tooltip } from "@mantine/core";
+import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 import { CommandPaginationBar } from "@/components/commands/CommandPaginationBar";
 import { PlatformLinkEditorModal } from "@/components/commands/PlatformLinkEditorModal";
 import { HostType, Platform, PlatformLink, Tag } from "@/components/commands/types";
@@ -23,12 +24,13 @@ export default function LinksPage() {
   const [categoryId, setCategoryId] = useState<string>("");
   const [hostTypeId, setHostTypeId] = useState<string>("");
   const [platformId, setPlatformId] = useState<string>("");
-  const [scopeMode, setScopeMode] = useState<"normal" | "vendor">("normal");
+  const [scopeMode, setScopeMode] = useState<"normal" | "vendor" | "common">("normal");
   const [vendorId, setVendorId] = useState<string>("");
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [tagMode, setTagMode] = useState<"and" | "or">("and");
   const [page, setPage] = useState(1);
+  const [linkReorderMode, setLinkReorderMode] = useState(false);
 
   const [openModal, setOpenModal] = useState(false);
   const [editingLink, setEditingLink] = useState<PlatformLink | null>(null);
@@ -39,7 +41,7 @@ export default function LinksPage() {
   const [tagInput, setTagInput] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<Tag[]>([]);
   const [deviceBindingMode, setDeviceBindingMode] = useState<"INCLUDE_IN_DEVICE" | "EXCLUDE_FROM_DEVICE">("INCLUDE_IN_DEVICE");
-  const [linkScope, setLinkScope] = useState<"platform" | "vendor">("platform");
+  const [linkScope, setLinkScope] = useState<"platform" | "vendor" | "common">("platform");
   const [editorCategoryId, setEditorCategoryId] = useState<string>("");
   const [editorHostTypeId, setEditorHostTypeId] = useState<string>("");
   const [editorPlatformId, setEditorPlatformId] = useState<string>("");
@@ -75,10 +77,14 @@ export default function LinksPage() {
       );
     }
     const selectedCategoryId = Number(categoryId);
-    return platforms.filter((platform) =>
-      (platform.hostTypeLinks ?? []).some((link) => link.hostType?.categoryId === selectedCategoryId)
+    const selectableHostTypeIds = new Set(
+      hostTypes.filter((hostType) => hostType.categoryId === selectedCategoryId).map((hostType) => hostType.id)
     );
-  }, [categoryId, hostTypeId, platforms]);
+    if (selectableHostTypeIds.size === 0) return platforms;
+    return platforms.filter((platform) =>
+      (platform.hostTypeLinks ?? []).some((link) => selectableHostTypeIds.has(link.hostTypeId))
+    );
+  }, [categoryId, hostTypeId, hostTypes, platforms]);
 
   useEffect(() => {
     if (!hostTypeId) return;
@@ -97,8 +103,10 @@ export default function LinksPage() {
   const fetchLinks = useCallback(async () => {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
+    params.set("scope", scopeMode);
     if (scopeMode === "vendor") {
       if (vendorId) params.set("vendorId", vendorId);
+    } else if (scopeMode === "common") {
     } else {
       if (hostTypeId) params.set("hostTypeId", hostTypeId);
       if (platformId) params.set("platformId", platformId);
@@ -120,8 +128,10 @@ export default function LinksPage() {
   const fetchAvailableTags = useCallback(async () => {
     const params = new URLSearchParams();
     if (q.trim()) params.set("q", q.trim());
+    params.set("scope", scopeMode);
     if (scopeMode === "vendor") {
       if (vendorId) params.set("vendorId", vendorId);
+    } else if (scopeMode === "common") {
     } else {
       if (hostTypeId) params.set("hostTypeId", hostTypeId);
       if (platformId) params.set("platformId", platformId);
@@ -159,6 +169,23 @@ export default function LinksPage() {
     setEditorHostTypeId("");
     setEditorPlatformId("");
     setEditorPlatformIds([]);
+  };
+  const handleLinkScopeChange = (value: "platform" | "vendor" | "common") => {
+    setLinkScope(value);
+    if (value === "common") {
+      setEditorCategoryId("");
+      setEditorHostTypeId("");
+      setEditorPlatformId("");
+      setEditorPlatformIds([]);
+      setEditorVendorId("");
+      return;
+    }
+    if (value === "vendor") {
+      setEditorPlatformId("");
+      setEditorPlatformIds([]);
+      return;
+    }
+    setEditorVendorId("");
   };
 
   const pagedLinks = useMemo(() => {
@@ -229,7 +256,7 @@ export default function LinksPage() {
     setCommentTemplate("");
     setTags([]);
     setDeviceBindingMode("INCLUDE_IN_DEVICE");
-    setLinkScope(scopeMode === "vendor" ? "vendor" : "platform");
+    handleLinkScopeChange(scopeMode === "vendor" ? "vendor" : scopeMode === "common" ? "common" : "platform");
     setEditorCategoryId(categoryId);
     setEditorHostTypeId(hostTypeId);
     setEditorPlatformId(platformId);
@@ -246,7 +273,7 @@ export default function LinksPage() {
     setCommentTemplate(link.commentTemplate ?? "");
     setTags((link.tags ?? []).map((item) => item.tag.name));
     setDeviceBindingMode(link.deviceBindingMode === "EXCLUDE_FROM_DEVICE" ? "EXCLUDE_FROM_DEVICE" : "INCLUDE_IN_DEVICE");
-    setLinkScope(link.vendorId && !link.platformId ? "vendor" : "platform");
+    handleLinkScopeChange(link.vendorId && !link.platformId ? "vendor" : link.platformId ? "platform" : "common");
     const fallbackCategoryId =
       link.hostType?.categoryId ??
       hostTypes.find((item) => item.id === link.hostTypeId)?.categoryId ??
@@ -278,8 +305,16 @@ export default function LinksPage() {
   }, [tagInput]);
 
   const saveLink = async () => {
-    const selectedHostTypeId = editorHostTypeId || editingLink?.hostTypeId?.toString();
-    if (linkScope !== "vendor" && !selectedHostTypeId) {
+    const commonHostTypeId = hostTypes.find((item) => item.name === "共通")?.id ?? null;
+    if (linkScope === "common" && !commonHostTypeId) {
+      setSaveError("共通ホスト種別が見つかりません。taxonomyで「共通」を作成してください。");
+      return;
+    }
+    const selectedHostTypeId =
+      linkScope === "common"
+        ? String(commonHostTypeId ?? "")
+        : (editorHostTypeId || editingLink?.hostTypeId?.toString());
+    if (!selectedHostTypeId) {
       setSaveError("ホスト種別を選択してください。");
       return;
     }
@@ -366,12 +401,47 @@ export default function LinksPage() {
     });
   };
 
+  const reorderLink = async (linkId: number, direction: "up" | "down") => {
+    const index = links.findIndex((item) => item.id === linkId);
+    if (index < 0) return;
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= links.length) return;
+
+    const source = links[index];
+    const target = links[targetIndex];
+    if (
+      source.hostTypeId !== target.hostTypeId ||
+      (source.platformId ?? null) !== (target.platformId ?? null) ||
+      (source.vendorId ?? null) !== (target.vendorId ?? null)
+    ) {
+      return;
+    }
+
+    const reordered = [...links];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    const res = await fetch("/api/platforms/platform-links/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: reordered.map((item) => item.id) })
+    });
+    if (!res.ok) return;
+    await fetchLinks();
+  };
+
   return (
     <Stack p="md" gap="md">
       <Group justify="space-between">
         <Text fw={700} size="xl">関連リンク一覧</Text>
         <Group align="flex-end">
           <TextInput size="xs" w={260} placeholder="検索" value={q} onChange={(e) => setQ(e.currentTarget.value)} />
+          <Button
+            variant={linkReorderMode ? "filled" : "light"}
+            onClick={() => setLinkReorderMode((prev) => !prev)}
+          >
+            {linkReorderMode ? "順番変更終了" : "順番変更"}
+          </Button>
           <Button onClick={openCreate}>新規追加</Button>
         </Group>
       </Group>
@@ -385,7 +455,8 @@ export default function LinksPage() {
             onChange={(value) => setScopeMode(value as "normal" | "vendor")}
             data={[
               { label: "通常", value: "normal" },
-              { label: "ベンダ共有", value: "vendor" }
+              { label: "ベンダ共有", value: "vendor" },
+              { label: "全装置共有", value: "common" }
             ]}
           />
         </Group>
@@ -400,7 +471,7 @@ export default function LinksPage() {
               ))}
             </Group>
           </>
-        ) : (
+        ) : scopeMode === "common" ? null : (
           <>
             <Text size="sm" fw={600}>分類</Text>
             <Group gap="xs" wrap="wrap">
@@ -504,8 +575,22 @@ export default function LinksPage() {
                               {link.resolvedUrl ?? link.urlTemplate}
                             </a>
                             <Group gap={6}>
-                              <Badge size="xs" color={link.vendorId && !link.platformId ? "cyan" : "gray"} variant="light">
-                                {link.vendorId && !link.platformId ? "ベンダ共通" : "機種固有"}
+                              <Badge
+                                size="xs"
+                                color={
+                                  !link.vendorId && !link.platformId
+                                    ? "violet"
+                                    : link.vendorId && !link.platformId
+                                      ? "cyan"
+                                      : "gray"
+                                }
+                                variant="light"
+                              >
+                                {!link.vendorId && !link.platformId
+                                  ? "全装置共有"
+                                  : link.vendorId && !link.platformId
+                                    ? "ベンダ共通"
+                                    : "機種固有"}
                               </Badge>
                               {(link.tags ?? []).map((item) => (
                                 <Badge key={`${link.id}-${item.tag.id}`} size="xs" color="teal" variant="light">
@@ -514,7 +599,29 @@ export default function LinksPage() {
                               ))}
                             </Group>
                           </Stack>
-                          <Button size="compact-xs" variant="light" onClick={() => openEdit(link)}>詳細</Button>
+                          <Group gap={4} wrap="nowrap">
+                            {linkReorderMode ? (
+                              <>
+                                <ActionIcon
+                                  size="sm"
+                                  variant="subtle"
+                                  onClick={() => reorderLink(link.id, "up")}
+                                  aria-label="上へ移動"
+                                >
+                                  <IconChevronUp size={14} />
+                                </ActionIcon>
+                                <ActionIcon
+                                  size="sm"
+                                  variant="subtle"
+                                  onClick={() => reorderLink(link.id, "down")}
+                                  aria-label="下へ移動"
+                                >
+                                  <IconChevronDown size={14} />
+                                </ActionIcon>
+                              </>
+                            ) : null}
+                            <Button size="compact-xs" variant="light" onClick={() => openEdit(link)}>詳細</Button>
+                          </Group>
                         </Group>
                       </Paper>
                     </Tooltip>
@@ -534,7 +641,7 @@ export default function LinksPage() {
         title={title}
         onTitleChange={setTitle}
         linkScope={linkScope}
-        onLinkScopeChange={setLinkScope}
+        onLinkScopeChange={handleLinkScopeChange}
         showTargetSelectors
         categories={categories}
         categoryId={editorCategoryId}

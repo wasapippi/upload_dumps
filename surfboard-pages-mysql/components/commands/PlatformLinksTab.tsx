@@ -120,7 +120,7 @@ export const PlatformLinksTab = ({
           {Array.from(hostGroup.platforms.entries()).map(([key, list]) => {
             const platformLabel =
               key === "common"
-                ? "共通"
+                ? "全装置共有"
                 : key.startsWith("vendor-")
                   ? `${list[0].vendor?.name ?? "ベンダ"} 共通`
                   : (list[0].platform?.name ?? "機種固有");
@@ -180,10 +180,10 @@ export const PlatformLinksTab = ({
                           <Group gap={6}>
                             <Badge
                               size="xs"
-                              color={link.vendorId && !link.platformId ? "cyan" : "gray"}
+                              color={!link.vendorId && !link.platformId ? "violet" : link.vendorId && !link.platformId ? "cyan" : "gray"}
                               variant="light"
                             >
-                              {link.vendorId && !link.platformId ? "ベンダ共通" : "機種固有"}
+                              {!link.vendorId && !link.platformId ? "全装置共有" : link.vendorId && !link.platformId ? "ベンダ共通" : "機種固有"}
                             </Badge>
                             <Badge
                               size="xs"
