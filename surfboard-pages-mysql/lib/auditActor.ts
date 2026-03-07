@@ -26,6 +26,7 @@ export const resolveActorName = (request: HeaderSource) => {
   };
 
   const candidates = [
+    decodeIfEncoded(pickHeader(request, "x-surfboard-actor")),
     decodeIfEncoded(pickHeader(request, "x-actor-name")),
     decodeIfEncoded(pickHeader(request, "x-user-name")),
     decodeIfEncoded(pickHeader(request, "x-editor-name")),

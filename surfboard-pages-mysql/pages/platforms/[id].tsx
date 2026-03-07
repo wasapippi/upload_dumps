@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import {
   Badge,
   Group,
@@ -16,10 +17,13 @@ import { PlatformCommandTab } from "@/components/commands/PlatformCommandTab";
 import { PlatformLinksTab } from "@/components/commands/PlatformLinksTab";
 import { PlatformLinkEditorModal } from "@/components/commands/PlatformLinkEditorModal";
 import { sortByBadgeOrder, sortByName } from "@/lib/badgeOrder";
+import { buildActorHeader } from "@/lib/actorClient";
 
 type Category = { id: number; name: string; groupOrderIndex: number };
 
 export default function PlatformDetailPage() {
+  const sessionState = useSession();
+  const actorHeader = useMemo(() => buildActorHeader(sessionState?.data?.user?.name), [sessionState?.data?.user?.name]);
   const router = useRouter();
   const hostName = typeof router.query.hostName === "string" ? router.query.hostName : "";
   const platformId = Number(router.query.id);
@@ -372,7 +376,7 @@ export default function PlatformDetailPage() {
       editingLink ? `/api/platforms/platform-links/${editingLink.id}` : "/api/platforms/platform-links",
       {
         method: editingLink ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...actorHeader },
         body: JSON.stringify(payload)
       }
     );
@@ -424,13 +428,13 @@ export default function PlatformDetailPage() {
     if (!ok) return;
     let res = await fetch(`/api/platforms/platform-links/${link.id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...actorHeader },
       body: JSON.stringify({ delete: true })
     });
     if (res.status === 404) {
       res = await fetch(`/api/platform-links/${link.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...actorHeader },
         body: JSON.stringify({ delete: true })
       });
     }
@@ -452,7 +456,7 @@ export default function PlatformDetailPage() {
     reordered.splice(targetIndex, 0, target);
     const res = await fetch("/api/platforms/platform-links/reorder", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...actorHeader },
       body: JSON.stringify({ ids: reordered.map((item) => item.id) })
     });
     if (!res.ok) return;

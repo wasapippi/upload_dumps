@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import {
   Badge,
   Button,
@@ -16,6 +17,7 @@ import {
 import { Command, HostType, Platform, Tag } from "./types";
 import { sortByBadgeOrder, sortByName } from "@/lib/badgeOrder";
 import { isCommonPlaceholderName } from "@/lib/commonPlaceholder";
+import { buildActorHeader } from "@/lib/actorClient";
 type Vendor = { id: number; name: string };
 
 const badgeStyle = { cursor: "pointer" } as const;
@@ -50,6 +52,8 @@ export const CommandEditor = ({
   lockPlatform?: boolean;
   onCreated?: () => void;
 }) => {
+  const sessionState = useSession();
+  const actorHeader = useMemo(() => buildActorHeader(sessionState?.data?.user?.name), [sessionState?.data?.user?.name]);
   const [title, setTitle] = useState(initialCommand?.title ?? "");
   const [description, setDescription] = useState(initialCommand?.description ?? "");
   const [commandText, setCommandText] = useState(initialCommand?.commandText ?? "");
@@ -348,7 +352,7 @@ export const CommandEditor = ({
 
     const response = await fetch(initialCommand ? `/api/platforms/commands/${initialCommand.id}` : "/api/platforms/commands", {
       method: initialCommand ? "PUT" : "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...actorHeader },
       body: JSON.stringify({ ...payload, updatedAt: currentUpdatedAt })
     });
 

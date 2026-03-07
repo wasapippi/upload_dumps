@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import {
   Badge,
   Button,
@@ -17,6 +18,7 @@ import {
 import { Command, HostType, Platform, Tag } from "./types";
 import { sortByBadgeOrder, sortByName } from "@/lib/badgeOrder";
 import { isCommonPlaceholderName } from "@/lib/commonPlaceholder";
+import { buildActorHeader } from "@/lib/actorClient";
 import {
   applyBracketTemplate,
   extractBracketVariables,
@@ -53,6 +55,8 @@ export const CommandDetailModal = ({
   onDeleted?: () => void;
   onClose: () => void;
 }) => {
+  const sessionState = useSession();
+  const actorHeader = useMemo(() => buildActorHeader(sessionState?.data?.user?.name), [sessionState?.data?.user?.name]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [commandText, setCommandText] = useState("");
@@ -299,7 +303,7 @@ export const CommandDetailModal = ({
 
     const response = await fetch(`/api/platforms/commands/${command.id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...actorHeader },
       body: JSON.stringify({
         title,
         description,
@@ -343,13 +347,13 @@ export const CommandDetailModal = ({
 
     let response = await fetch(`/api/platforms/commands/${command.id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...actorHeader },
       body: JSON.stringify({ delete: true })
     });
     if (response.status === 404) {
       response = await fetch(`/api/commands/${command.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...actorHeader },
         body: JSON.stringify({ delete: true })
       });
     }

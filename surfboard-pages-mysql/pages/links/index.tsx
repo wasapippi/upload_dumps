@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { ActionIcon, Badge, Button, Group, Paper, SegmentedControl, Stack, Text, TextInput, Tooltip } from "@mantine/core";
 import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 import { CommandPaginationBar } from "@/components/commands/CommandPaginationBar";
@@ -8,6 +9,7 @@ import { PlatformLinkEditorModal } from "@/components/commands/PlatformLinkEdito
 import { HostType, Platform, PlatformLink, Tag } from "@/components/commands/types";
 import { isCommonPlaceholderName } from "@/lib/commonPlaceholder";
 import { urlEllipsisStyle } from "@/lib/urlEllipsis";
+import { buildActorHeader } from "@/lib/actorClient";
 
 const PAGE_SIZE = 20;
 type Vendor = { id: number; name: string };
@@ -17,6 +19,8 @@ const badgeStyle = { cursor: "pointer" } as const;
 const platformKey = (link: PlatformLink) => (link.platformId ? String(link.platformId) : (link.vendorId ? `vendor-${link.vendorId}` : "common"));
 
 export default function LinksPage() {
+  const sessionState = useSession();
+  const actorHeader = useMemo(() => buildActorHeader(sessionState?.data?.user?.name), [sessionState?.data?.user?.name]);
   const [links, setLinks] = useState<PlatformLink[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [hostTypes, setHostTypes] = useState<HostType[]>([]);
@@ -363,7 +367,7 @@ export default function LinksPage() {
     };
     const res = await fetch(editingLink ? `/api/platforms/platform-links/${editingLink.id}` : "/api/platforms/platform-links", {
       method: editingLink ? "PUT" : "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...actorHeader },
       body: JSON.stringify(payload)
     });
     if (!res.ok) {
@@ -381,13 +385,13 @@ export default function LinksPage() {
     if (!ok) return;
     let res = await fetch(`/api/platforms/platform-links/${editingLink.id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...actorHeader },
       body: JSON.stringify({ delete: true })
     });
     if (res.status === 404) {
       res = await fetch(`/api/platform-links/${editingLink.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...actorHeader },
         body: JSON.stringify({ delete: true })
       });
     }
@@ -439,7 +443,7 @@ export default function LinksPage() {
 
     const res = await fetch("/api/platforms/platform-links/reorder", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...actorHeader },
       body: JSON.stringify({ ids: reordered.map((item) => item.id) })
     });
     if (!res.ok) return;

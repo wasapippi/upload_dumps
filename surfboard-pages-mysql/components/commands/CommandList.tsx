@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Button, Group, Stack, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconCheck } from "@tabler/icons-react";
@@ -9,6 +10,7 @@ import { CommandCard } from "./CommandCard";
 import { CommandDetailModal } from "./CommandDetailModal";
 import { CommandCopyModal } from "./CommandCopyModal";
 import { extractBracketVariables } from "@/lib/commandTemplate";
+import { buildActorHeader } from "@/lib/actorClient";
 
 const platformKey = (command: Command) =>
   command.platformId ? String(command.platformId) : "common";
@@ -32,6 +34,8 @@ export const CommandList = ({
   onRegisterCopyAll?: (fn: () => void) => void;
   onRefresh?: () => void;
 }) => {
+  const sessionState = useSession();
+  const actorHeader = useMemo(() => buildActorHeader(sessionState?.data?.user?.name), [sessionState?.data?.user?.name]);
   const [selected, setSelected] = useState<Command | null>(null);
   const [copyTargets, setCopyTargets] = useState<Command[]>([]);
   const [variableStore, setVariableStore] = useState<Record<string, string>>({});
@@ -146,7 +150,7 @@ export const CommandList = ({
 
     await fetch("/api/platforms/commands/reorder", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...actorHeader },
       body: JSON.stringify(payload)
     });
 
@@ -164,7 +168,7 @@ export const CommandList = ({
 
     await fetch("/api/platforms/host-types/reorder", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...actorHeader },
       body: JSON.stringify({
         items: [
           { id: current.id, groupOrderIndex: target.groupOrderIndex },

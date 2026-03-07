@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Badge, Button, Group, Modal, Paper, SegmentedControl, Stack, Tabs, Text, TextInput, Tooltip } from "@mantine/core";
 import { Command, HostType, Platform, PlatformLink, Tag } from "./types";
 import { CommandList } from "./CommandList";
@@ -8,6 +9,7 @@ import { CommandPaginationBar } from "./CommandPaginationBar";
 import { PlatformLinkEditorModal } from "./PlatformLinkEditorModal";
 import { CommandEditor } from "./CommandEditor";
 import { urlEllipsisStyle } from "@/lib/urlEllipsis";
+import { buildActorHeader } from "@/lib/actorClient";
 
 type Category = { id: number; name: string };
 type Vendor = { id: number; name: string };
@@ -45,6 +47,8 @@ export const FixedPlatformPreviewModal = ({
   initialTagIds?: number[];
   initialTagMode?: "and" | "or";
 }) => {
+  const sessionState = useSession();
+  const actorHeader = useMemo(() => buildActorHeader(sessionState?.data?.user?.name), [sessionState?.data?.user?.name]);
   const COMMAND_PAGE_SIZE = 20;
   const LINK_PAGE_SIZE = 10;
   const [allCommands, setAllCommands] = useState<Command[]>([]);
@@ -528,7 +532,7 @@ export const FixedPlatformPreviewModal = ({
     };
     const res = await fetch(editingLink ? `/api/platforms/platform-links/${editingLink.id}` : "/api/platforms/platform-links", {
       method: editingLink ? "PUT" : "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...actorHeader },
       body: JSON.stringify(payload)
     });
     if (!res.ok) {
