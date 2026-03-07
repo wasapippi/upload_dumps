@@ -54,7 +54,7 @@ export const PlatformLinksTab = ({
   }, [links]);
 
   return (
-    <Stack gap="xs" style={{ width: "100%", minWidth: 0 }}>
+    <Stack gap="xs" style={{ width: "100%", minWidth: 0, maxWidth: "100%", overflowX: "hidden" }}>
       <Group justify="flex-end">
         <Button variant={linkReorderMode ? "filled" : "light"} onClick={onToggleReorderMode}>
           {linkReorderMode ? "順番変更を終了" : "順番変更"}
@@ -140,16 +140,21 @@ export const PlatformLinksTab = ({
                       position="top-start"
                       openDelay={150}
                     >
-                      <Paper withBorder p="sm" radius="sm" style={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
+                      <Paper
+                        withBorder
+                        p="sm"
+                        radius="sm"
+                        style={{ width: "100%", maxWidth: "100%", minWidth: 0, overflow: "hidden" }}
+                      >
                         <Stack gap={6}>
                           <Group justify="space-between" align="center" wrap="nowrap" style={{ width: "100%", minWidth: 0 }}>
-                            <Stack gap={2} style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
+                            <Stack gap={2} style={{ minWidth: 0, width: 0, flex: "1 1 0%", overflow: "hidden" }}>
                               <Text fw={600} size="sm" lineClamp={1}>{link.title}</Text>
                               <a
                                 href={link.resolvedUrl ?? link.urlTemplate}
                                 target="_blank"
                                 rel="noreferrer"
-                                style={{ fontSize: 12, ...urlEllipsisStyle }}
+                                style={{ fontSize: 12, width: "100%", ...urlEllipsisStyle }}
                                 title={link.resolvedUrl ?? link.urlTemplate}
                               >
                                 {link.resolvedUrl ?? link.urlTemplate}

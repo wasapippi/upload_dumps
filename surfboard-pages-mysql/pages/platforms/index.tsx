@@ -116,7 +116,7 @@ export default function PlatformsPage() {
         </Button>
         <Button
           component={Link}
-          href="/taxonomy"
+          href="/platforms/taxonomy"
           variant="light"
           color="grape"
           size="xs"

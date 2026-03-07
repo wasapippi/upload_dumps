@@ -488,7 +488,7 @@ export default function PlatformDetailPage() {
         </Group>
       </Stack>
 
-      <Tabs defaultValue="commands">
+      <Tabs defaultValue="commands" style={{ width: "100%", minWidth: 0, maxWidth: "100%" }}>
         <Tabs.List>
           <Tabs.Tab value="commands">関連コマンド</Tabs.Tab>
           <Tabs.Tab value="links">関連リンク</Tabs.Tab>
@@ -509,7 +509,7 @@ export default function PlatformDetailPage() {
           />
         </Tabs.Panel>
 
-        <Tabs.Panel value="links" pt="sm">
+        <Tabs.Panel value="links" pt="sm" style={{ width: "100%", minWidth: 0, maxWidth: "100%", overflowX: "hidden" }}>
           <PlatformLinksTab
             linkReorderMode={linkReorderMode}
             onToggleReorderMode={() => setLinkReorderMode((prev) => !prev)}
