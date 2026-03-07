@@ -2,6 +2,7 @@
 
 import { Badge, Button, Group, SegmentedControl, Stack, Text } from "@mantine/core";
 import { HostType, Platform, Tag } from "./types";
+import { isCommonPlaceholderName } from "@/lib/commonPlaceholder";
 
 const badgeStyle = { cursor: "pointer" } as const;
 
@@ -62,7 +63,9 @@ export const CommandFilterPanel = ({
   showPlatform?: boolean;
 }) => {
   const vendorScope = scopeMode === "vendor";
-  const selectedHostType = filteredHostTypes.find((item) => String(item.id) === hostTypeId) ?? null;
+  const visibleCategories = categories.filter((item) => !isCommonPlaceholderName(item.name));
+  const visibleHostTypes = filteredHostTypes.filter((item) => !isCommonPlaceholderName(item.name));
+  const selectedHostType = visibleHostTypes.find((item) => String(item.id) === hostTypeId) ?? null;
   const selectedPlatform = filteredPlatforms.find((item) => String(item.id) === platformId) ?? null;
   const hostTypeCollapsed = hostTypeId !== "";
   const platformCollapsed = platformId !== "";
@@ -123,7 +126,7 @@ export const CommandFilterPanel = ({
             >
               全て
             </Badge>
-            {categories.map((item) => (
+            {visibleCategories.map((item) => (
               <Badge
                 key={item.id}
                 style={badgeStyle}
@@ -157,7 +160,7 @@ export const CommandFilterPanel = ({
                     {selectedHostType.name}
                   </Badge>
                 ) : null)
-              : filteredHostTypes.map((item) => (
+              : visibleHostTypes.map((item) => (
                   <Badge
                     key={item.id}
                     style={badgeStyle}

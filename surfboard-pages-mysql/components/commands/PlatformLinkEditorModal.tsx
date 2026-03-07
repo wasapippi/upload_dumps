@@ -3,6 +3,7 @@
 import { Badge, Button, Group, Modal, Stack, TagsInput, Text, TextInput, Textarea } from "@mantine/core";
 import { HostType, Platform, Tag } from "./types";
 import { sortByBadgeOrder, sortByName } from "@/lib/badgeOrder";
+import { isCommonPlaceholderName } from "@/lib/commonPlaceholder";
 
 const badgeStyle = { cursor: "pointer" } as const;
 
@@ -89,8 +90,8 @@ export const PlatformLinkEditorModal = ({
   onDelete,
   onSave
 }: Props) => {
-  const sortedCategories = sortByBadgeOrder(categories);
-  const sortedHostTypes = sortByBadgeOrder(hostTypes);
+  const sortedCategories = sortByBadgeOrder(categories).filter((item) => !isCommonPlaceholderName(item.name));
+  const sortedHostTypes = sortByBadgeOrder(hostTypes).filter((item) => !isCommonPlaceholderName(item.name));
   const sortedPlatforms = sortByName(platforms);
   const sortedVendors = sortByName(vendors);
   const sortedTagSuggestions = sortByName(tagSuggestions);

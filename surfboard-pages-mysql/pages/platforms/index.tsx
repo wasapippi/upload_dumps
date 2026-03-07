@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Badge, Button, Group, Paper, SimpleGrid, Stack, Text, TextInput } from "@mantine/core";
 import { IconLink, IconSitemap, IconTerminal2 } from "@tabler/icons-react";
 import { HostType, Platform } from "@/components/commands/types";
+import { sortByBadgeOrder, sortByName } from "@/lib/badgeOrder";
+import { isCommonPlaceholderName } from "@/lib/commonPlaceholder";
 
 const badgeStyle = { cursor: "pointer" } as const;
 
@@ -29,22 +31,31 @@ export default function PlatformsPage() {
   }, [fetchMasters]);
 
   const categories = useMemo(() => {
-    const map = new Map<number, { id: number; name: string }>();
+    const map = new Map<number, { id: number; name: string; groupOrderIndex?: number }>();
     for (const hostType of hostTypes) {
       if (!hostType.category) continue;
       map.set(hostType.category.id, {
         id: hostType.category.id,
-        name: hostType.category.name
+        name: hostType.category.name,
+        groupOrderIndex: hostType.category.groupOrderIndex
       });
     }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+    return sortByBadgeOrder(Array.from(map.values()));
   }, [hostTypes]);
+  const visibleCategories = useMemo(
+    () => categories.filter((item) => !isCommonPlaceholderName(item.name)),
+    [categories]
+  );
 
   const filteredHostTypes = useMemo(() => {
-    if (!categoryId) return hostTypes;
+    if (!categoryId) return sortByBadgeOrder(hostTypes);
     const id = Number(categoryId);
-    return hostTypes.filter((hostType) => hostType.categoryId === id);
+    return sortByBadgeOrder(hostTypes.filter((hostType) => hostType.categoryId === id));
   }, [categoryId, hostTypes]);
+  const visibleFilteredHostTypes = useMemo(
+    () => filteredHostTypes.filter((item) => !isCommonPlaceholderName(item.name)),
+    [filteredHostTypes]
+  );
 
   useEffect(() => {
     if (!hostTypeId) return;
@@ -67,8 +78,10 @@ export default function PlatformsPage() {
       return (platform.hostTypeLinks ?? []).some((link) => selectableHostTypeIds.has(link.hostTypeId));
     });
 
-    if (!keyword) return byTaxonomy;
-    return byTaxonomy.filter((platform) => {
+    const sorted = sortByName(byTaxonomy);
+
+    if (!keyword) return sorted;
+    return sorted.filter((platform) => {
       const base = `${platform.vendor?.name ?? ""} ${platform.name}`.toLowerCase();
       return base.includes(keyword);
     });
@@ -130,7 +143,7 @@ export default function PlatformsPage() {
           >
             全て
           </Badge>
-          {categories.map((item) => (
+          {visibleCategories.map((item) => (
             <Badge
               key={item.id}
               style={badgeStyle}
@@ -155,7 +168,7 @@ export default function PlatformsPage() {
           >
             全て
           </Badge>
-          {filteredHostTypes.map((item) => (
+          {visibleFilteredHostTypes.map((item) => (
             <Badge
               key={item.id}
               style={badgeStyle}

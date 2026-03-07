@@ -15,6 +15,7 @@ import {
 } from "@mantine/core";
 import { Command, HostType, Platform, Tag } from "./types";
 import { sortByBadgeOrder, sortByName } from "@/lib/badgeOrder";
+import { isCommonPlaceholderName } from "@/lib/commonPlaceholder";
 type Vendor = { id: number; name: string };
 
 const badgeStyle = { cursor: "pointer" } as const;
@@ -241,6 +242,18 @@ export const CommandEditor = ({
     }
     return sortByName(Array.from(map.values()));
   }, [platforms, vendors]);
+  const commonHostTypeId = useMemo(
+    () => hostTypes.find((item) => isCommonPlaceholderName(item.name))?.id ?? null,
+    [hostTypes]
+  );
+  const visibleCategories = useMemo(
+    () => categories.filter((item) => !isCommonPlaceholderName(item.name)),
+    [categories]
+  );
+  const visibleHostTypes = useMemo(
+    () => filteredHostTypes.filter((item) => !isCommonPlaceholderName(item.name)),
+    [filteredHostTypes]
+  );
 
   useEffect(() => {
     if (!hostTypeId || lockHostType || hostTypes.length === 0) return;
@@ -295,8 +308,17 @@ export const CommandEditor = ({
     setSaving(true);
     setError(null);
 
-    if (!title.trim() || !commandText.trim() || (scopeMode !== "vendor" && !hostTypeId)) {
+    const resolvedHostTypeId =
+      scopeMode === "common"
+        ? commonHostTypeId
+        : (hostTypeId ? Number(hostTypeId) : (scopeMode === "vendor" ? commonHostTypeId : null));
+    if (!title.trim() || !commandText.trim() || (scopeMode !== "vendor" && !resolvedHostTypeId)) {
       setError("必須項目を入力してください。");
+      setSaving(false);
+      return;
+    }
+    if (scopeMode === "common" && !commonHostTypeId) {
+      setError("共通ホスト種別が見つかりません。taxonomyで「共通」を作成してください。");
       setSaving(false);
       return;
     }
@@ -305,12 +327,17 @@ export const CommandEditor = ({
       setSaving(false);
       return;
     }
+    if (!resolvedHostTypeId) {
+      setError("共通ホスト種別が見つかりません。taxonomyで「共通」を作成してください。");
+      setSaving(false);
+      return;
+    }
 
     const payload = {
       title,
       description,
       commandText,
-      hostTypeId: Number(hostTypeId),
+      hostTypeId: Number(resolvedHostTypeId),
       platformId: scopeMode === "platform" && platformId ? Number(platformId) : null,
       vendorId: scopeMode === "vendor" && vendorId ? Number(vendorId) : null,
       visibility,
@@ -433,7 +460,7 @@ export const CommandEditor = ({
           <Stack gap={6}>
         <Text size="sm" fw={600}>分類</Text>
         <Group gap="xs" wrap="wrap">
-          {categories.map((item) => (
+          {visibleCategories.map((item) => (
             <Badge
               key={item.id}
               style={badgeStyle}
@@ -453,7 +480,7 @@ export const CommandEditor = ({
       <Stack gap={6}>
         <Text size="sm" fw={600}>ホスト種別</Text>
         <Group gap="xs" wrap="wrap">
-          {filteredHostTypes.map((item) => (
+          {visibleHostTypes.map((item) => (
             <Badge
               key={item.id}
               style={badgeStyle}

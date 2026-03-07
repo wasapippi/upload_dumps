@@ -6,6 +6,7 @@ import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 import { CommandPaginationBar } from "@/components/commands/CommandPaginationBar";
 import { PlatformLinkEditorModal } from "@/components/commands/PlatformLinkEditorModal";
 import { HostType, Platform, PlatformLink, Tag } from "@/components/commands/types";
+import { isCommonPlaceholderName } from "@/lib/commonPlaceholder";
 
 const PAGE_SIZE = 20;
 type Vendor = { id: number; name: string };
@@ -67,6 +68,14 @@ export default function LinksPage() {
     const id = Number(categoryId);
     return hostTypes.filter((hostType) => hostType.categoryId === id);
   }, [categoryId, hostTypes]);
+  const visibleCategories = useMemo(
+    () => categories.filter((item) => !isCommonPlaceholderName(item.name)),
+    [categories]
+  );
+  const visibleFilteredHostTypes = useMemo(
+    () => filteredHostTypes.filter((item) => !isCommonPlaceholderName(item.name)),
+    [filteredHostTypes]
+  );
 
   const filteredPlatforms = useMemo(() => {
     if (!hostTypeId && !categoryId) return platforms;
@@ -486,14 +495,14 @@ export default function LinksPage() {
             <Text size="sm" fw={600}>分類</Text>
             <Group gap="xs" wrap="wrap">
               <Badge style={badgeStyle} variant={categoryId === "" ? "filled" : "light"} color={categoryId === "" ? "blue" : "gray"} onClick={() => setCategoryId("")}>全て</Badge>
-              {categories.map((c) => (
+              {visibleCategories.map((c) => (
                 <Badge key={c.id} style={badgeStyle} variant={categoryId === String(c.id) ? "filled" : "light"} color={categoryId === String(c.id) ? "blue" : "gray"} onClick={() => setCategoryId(String(c.id))}>{c.name}</Badge>
               ))}
             </Group>
             <Text size="sm" fw={600}>ホスト種別</Text>
             <Group gap="xs" wrap="wrap">
               <Badge style={badgeStyle} variant={hostTypeId === "" ? "filled" : "light"} color={hostTypeId === "" ? "blue" : "gray"} onClick={() => setHostTypeId("")}>全て</Badge>
-              {filteredHostTypes.map((h) => (
+              {visibleFilteredHostTypes.map((h) => (
                 <Badge key={h.id} style={badgeStyle} variant={hostTypeId === String(h.id) ? "filled" : "light"} color={hostTypeId === String(h.id) ? "blue" : "gray"} onClick={() => setHostTypeId(String(h.id))}>{h.name}</Badge>
               ))}
             </Group>

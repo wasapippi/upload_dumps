@@ -16,6 +16,7 @@ import {
 } from "@mantine/core";
 import { Command, HostType, Platform, Tag } from "./types";
 import { sortByBadgeOrder, sortByName } from "@/lib/badgeOrder";
+import { isCommonPlaceholderName } from "@/lib/commonPlaceholder";
 import {
   applyBracketTemplate,
   extractBracketVariables,
@@ -175,6 +176,18 @@ export const CommandDetailModal = ({
     }
     return sortByName(Array.from(map.values()));
   }, [platforms, vendors]);
+  const commonHostTypeId = useMemo(
+    () => hostTypes.find((item) => isCommonPlaceholderName(item.name))?.id ?? null,
+    [hostTypes]
+  );
+  const visibleCategories = useMemo(
+    () => categories.filter((item) => !isCommonPlaceholderName(item.name)),
+    [categories]
+  );
+  const visibleHostTypes = useMemo(
+    () => filteredHostTypes.filter((item) => !isCommonPlaceholderName(item.name)),
+    [filteredHostTypes]
+  );
 
   useEffect(() => {
     if (!hostTypeId || hostTypes.length === 0) return;
@@ -267,12 +280,20 @@ export const CommandDetailModal = ({
   const handleSave = async () => {
     if (!command) return;
     setSaveError(null);
-    if (!hostTypeId && scopeMode !== "vendor") {
+    const resolvedHostTypeId =
+      scopeMode === "common"
+        ? commonHostTypeId
+        : (hostTypeId ? Number(hostTypeId) : (scopeMode === "vendor" ? commonHostTypeId : null));
+    if (!resolvedHostTypeId && scopeMode !== "vendor") {
       setSaveError("ホスト種別を選択してください。");
       return;
     }
     if (scopeMode === "vendor" && !vendorId) {
       setSaveError("ベンダを選択してください。");
+      return;
+    }
+    if (!resolvedHostTypeId) {
+      setSaveError("共通ホスト種別が見つかりません。taxonomyで「共通」を作成してください。");
       return;
     }
 
@@ -283,7 +304,7 @@ export const CommandDetailModal = ({
         title,
         description,
         commandText,
-        hostTypeId: hostTypeId ? Number(hostTypeId) : null,
+        hostTypeId: resolvedHostTypeId,
         platformId: scopeMode === "platform" && platformId ? Number(platformId) : null,
         vendorId: scopeMode === "vendor" && vendorId ? Number(vendorId) : null,
         visibility,
@@ -413,7 +434,7 @@ export const CommandDetailModal = ({
             <>
               <Text size="sm" fw={600}>分類</Text>
               <Group gap="xs" wrap="wrap">
-                {categories.map((item) => (
+                {visibleCategories.map((item) => (
                   <Badge
                     key={item.id}
                     style={badgeStyle}
@@ -428,7 +449,7 @@ export const CommandDetailModal = ({
 
               <Text size="sm" fw={600}>ホスト種別</Text>
               <Group gap="xs" wrap="wrap">
-                {filteredHostTypes.map((item) => (
+                {visibleHostTypes.map((item) => (
                   <Badge
                     key={item.id}
                     style={badgeStyle}

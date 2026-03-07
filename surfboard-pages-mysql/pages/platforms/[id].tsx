@@ -15,6 +15,7 @@ import { CommandEditor } from "@/components/commands/CommandEditor";
 import { PlatformCommandTab } from "@/components/commands/PlatformCommandTab";
 import { PlatformLinksTab } from "@/components/commands/PlatformLinksTab";
 import { PlatformLinkEditorModal } from "@/components/commands/PlatformLinkEditorModal";
+import { sortByBadgeOrder, sortByName } from "@/lib/badgeOrder";
 
 type Category = { id: number; name: string; groupOrderIndex: number };
 
@@ -69,32 +70,32 @@ export default function PlatformDetailPage() {
   );
 
   const selectableHostTypes = useMemo(() => {
-    if (!selectedPlatform) return hostTypes;
+    if (!selectedPlatform) return sortByBadgeOrder(hostTypes);
     const idSet = new Set((selectedPlatform.hostTypeLinks ?? []).map((link) => link.hostTypeId));
-    if (idSet.size === 0) return hostTypes;
-    return hostTypes.filter((item) => idSet.has(item.id));
+    if (idSet.size === 0) return sortByBadgeOrder(hostTypes);
+    return sortByBadgeOrder(hostTypes.filter((item) => idSet.has(item.id)));
   }, [hostTypes, selectedPlatform]);
   const editorPlatforms = useMemo(() => {
-    if (!editorHostTypeId && !editorCategoryId) return platforms;
+    if (!editorHostTypeId && !editorCategoryId) return sortByName(platforms);
     if (editorHostTypeId) {
       const selectedHostTypeId = Number(editorHostTypeId);
-      return platforms.filter((platform) =>
+      return sortByName(platforms.filter((platform) =>
         (platform.hostTypeLinks ?? []).some((link) => link.hostTypeId === selectedHostTypeId)
-      );
+      ));
     }
     const selectedCategoryId = Number(editorCategoryId);
     const selectableHostTypeIds = new Set(
       hostTypes.filter((hostType) => hostType.categoryId === selectedCategoryId).map((hostType) => hostType.id)
     );
-    if (selectableHostTypeIds.size === 0) return platforms;
-    return platforms.filter((platform) =>
+    if (selectableHostTypeIds.size === 0) return sortByName(platforms);
+    return sortByName(platforms.filter((platform) =>
       (platform.hostTypeLinks ?? []).some((link) => selectableHostTypeIds.has(link.hostTypeId))
-    );
+    ));
   }, [editorCategoryId, editorHostTypeId, hostTypes, platforms]);
   const editorHostTypes = useMemo(() => {
-    if (!editorCategoryId) return hostTypes;
+    if (!editorCategoryId) return sortByBadgeOrder(hostTypes);
     const selectedCategoryId = Number(editorCategoryId);
-    return hostTypes.filter((hostType) => hostType.categoryId === selectedCategoryId);
+    return sortByBadgeOrder(hostTypes.filter((hostType) => hostType.categoryId === selectedCategoryId));
   }, [editorCategoryId, hostTypes]);
 
   useEffect(() => {
