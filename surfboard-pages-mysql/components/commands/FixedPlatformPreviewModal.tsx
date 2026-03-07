@@ -6,6 +6,7 @@ import { Command, PlatformLink, Tag } from "./types";
 import { CommandList } from "./CommandList";
 import { CommandPaginationBar } from "./CommandPaginationBar";
 import { PlatformLinkEditorModal } from "./PlatformLinkEditorModal";
+import { CommandEditor } from "./CommandEditor";
 
 export const FixedPlatformPreviewModal = ({
   opened,
@@ -48,6 +49,7 @@ export const FixedPlatformPreviewModal = ({
   const [commandTagMode, setCommandTagMode] = useState<"and" | "or">(initialTagMode ?? "and");
   const [selectedCommandTagIds, setSelectedCommandTagIds] = useState<number[]>(initialTagIds ?? []);
   const [commandCopyAllAction, setCommandCopyAllAction] = useState<(() => void) | null>(null);
+  const [openCommandCreate, setOpenCommandCreate] = useState(false);
 
   const [allLinks, setAllLinks] = useState<PlatformLink[]>([]);
   const [availableLinkTags, setAvailableLinkTags] = useState<Tag[]>([]);
@@ -445,6 +447,11 @@ export const FixedPlatformPreviewModal = ({
           </Tabs.List>
 
           <Tabs.Panel value="commands" pt="sm">
+            <Group justify="flex-end" mb="xs">
+              <Button size="xs" onClick={() => setOpenCommandCreate(true)}>
+                コマンド追加
+              </Button>
+            </Group>
             <Group justify="space-between" align="flex-end" mb="xs">
               <TextInput
                 size="xs"
@@ -681,6 +688,27 @@ export const FixedPlatformPreviewModal = ({
         error={saveError}
         onSave={saveLink}
       />
+      <Modal
+        opened={openCommandCreate}
+        onClose={() => setOpenCommandCreate(false)}
+        title="コマンド新規作成"
+        size="xl"
+      >
+        <CommandEditor
+          initialContext={{
+            hostTypeId,
+            platformId,
+            scopeMode: "platform",
+            tags: []
+          }}
+          lockHostType
+          lockPlatform
+          onCreated={() => {
+            setOpenCommandCreate(false);
+            fetchCommands();
+          }}
+        />
+      </Modal>
     </Modal>
   );
 };
