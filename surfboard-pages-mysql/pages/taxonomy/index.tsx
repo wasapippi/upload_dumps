@@ -16,6 +16,7 @@ import {
 } from "@mantine/core";
 import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 import { HostType, Platform } from "@/components/commands/types";
+import DefaultLayout from "@/components/layouts/default";
 
 type Category = { id: number; name: string; groupOrderIndex: number };
 type Vendor = { id: number; name: string };
@@ -355,7 +356,8 @@ export default function TaxonomyPage() {
   };
 
   return (
-    <Stack p="md" gap="md">
+    <DefaultLayout id="platforms" title="機種別情報">
+    <Stack p="md" gap="md" style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
       <Text fw={700} size="xl">分類/ホスト種別/機種名/ベンダ 管理</Text>
 
       <Tabs defaultValue="category">
@@ -598,5 +600,6 @@ export default function TaxonomyPage() {
         </Stack>
       </Modal>
     </Stack>
+    </DefaultLayout>
   );
 }

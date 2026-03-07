@@ -18,6 +18,7 @@ import { PlatformLinksTab } from "@/components/commands/PlatformLinksTab";
 import { PlatformLinkEditorModal } from "@/components/commands/PlatformLinkEditorModal";
 import { sortByBadgeOrder, sortByName } from "@/lib/badgeOrder";
 import { buildActorHeader } from "@/lib/actorClient";
+import DefaultLayout from "@/components/layouts/default";
 
 type Category = { id: number; name: string; groupOrderIndex: number };
 
@@ -464,7 +465,8 @@ export default function PlatformDetailPage() {
   };
 
   return (
-    <Stack p="md" gap="md">
+    <DefaultLayout id="platforms" title="機種別情報">
+    <Stack p="md" gap="md" style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
       <Text fw={700} size="xl">{selectedPlatform?.name ?? "機種詳細"}</Text>
 
       <Stack gap={4}>
@@ -590,5 +592,6 @@ export default function PlatformDetailPage() {
         />
       </Modal>
     </Stack>
+    </DefaultLayout>
   );
 }

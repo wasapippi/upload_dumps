@@ -7,6 +7,7 @@ import { IconLink, IconSitemap, IconTerminal2 } from "@tabler/icons-react";
 import { HostType, Platform } from "@/components/commands/types";
 import { sortByBadgeOrder, sortByName } from "@/lib/badgeOrder";
 import { isCommonPlaceholderName } from "@/lib/commonPlaceholder";
+import DefaultLayout from "@/components/layouts/default";
 
 const badgeStyle = { cursor: "pointer" } as const;
 
@@ -88,7 +89,8 @@ export default function PlatformsPage() {
   }, [categoryId, filteredHostTypes, hostTypeId, platforms, q]);
 
   return (
-    <Stack p="md" gap="md">
+    <DefaultLayout id="platforms" title="機種別情報">
+    <Stack p="md" gap="md" style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
       <Text fw={700} size="xl">機種一覧</Text>
 
       <Group gap="xs">
@@ -208,5 +210,6 @@ export default function PlatformsPage() {
         ))}
       </SimpleGrid>
     </Stack>
+    </DefaultLayout>
   );
 }

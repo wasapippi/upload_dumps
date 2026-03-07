@@ -23,7 +23,7 @@ export default function CommandEditPage() {
 
   if (!command) {
     return (
-      <Stack gap="xl" p="xl">
+      <Stack gap="xl" p="xl" style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
         <Text fw={700} size="xl">
           コマンド編集
         </Text>
@@ -35,7 +35,7 @@ export default function CommandEditPage() {
   }
 
   return (
-    <Stack gap="xl" p="xl">
+    <Stack gap="xl" p="xl" style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
       <Text fw={700} size="xl">
         コマンド編集
       </Text>

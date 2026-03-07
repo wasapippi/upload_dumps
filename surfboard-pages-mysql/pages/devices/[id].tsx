@@ -37,7 +37,7 @@ export default function DevicePage() {
 
   if (!device) {
     return (
-      <Stack gap="md" p="xl">
+      <Stack gap="md" p="xl" style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
         <Text fw={700} size="xl">
           装置が見つかりません
         </Text>
@@ -46,7 +46,7 @@ export default function DevicePage() {
   }
 
   return (
-    <Stack gap="xl" p="xl">
+    <Stack gap="xl" p="xl" style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
       <Text fw={700} size="xl">
         装置: {device.name}
       </Text>

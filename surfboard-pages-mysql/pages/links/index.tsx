@@ -10,6 +10,7 @@ import { HostType, Platform, PlatformLink, Tag } from "@/components/commands/typ
 import { isCommonPlaceholderName } from "@/lib/commonPlaceholder";
 import { urlEllipsisStyle } from "@/lib/urlEllipsis";
 import { buildActorHeader } from "@/lib/actorClient";
+import DefaultLayout from "@/components/layouts/default";
 
 const PAGE_SIZE = 20;
 type Vendor = { id: number; name: string };
@@ -451,7 +452,8 @@ export default function LinksPage() {
   };
 
   return (
-    <Stack p="md" gap="md">
+    <DefaultLayout id="platforms" title="機種別情報">
+    <Stack p="md" gap="md" style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
       <Group justify="space-between">
         <Text fw={700} size="xl">関連リンク一覧</Text>
         <Group align="flex-end">
@@ -706,5 +708,6 @@ export default function LinksPage() {
         onSave={saveLink}
       />
     </Stack>
+    </DefaultLayout>
   );
 }

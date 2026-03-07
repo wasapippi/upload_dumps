@@ -16,6 +16,7 @@ import { CommandPaginationBar } from "@/components/commands/CommandPaginationBar
 import { HostTypeFixedPreviewAction } from "@/components/commands/HostTypeFixedPreviewAction";
 import { Command, HostType, Platform, Tag } from "@/components/commands/types";
 import { useRouter } from "next/router";
+import DefaultLayout from "@/components/layouts/default";
 const PAGE_SIZE = 20;
 type Vendor = { id: number; name: string };
 type Category = { id: number; name: string; groupOrderIndex: number };
@@ -200,7 +201,8 @@ export default function CommandsPage() {
   };
 
   return (
-    <Stack gap="md" p="md">
+    <DefaultLayout id="platforms" title="機種別情報">
+    <Stack gap="md" p="md" style={{ width: "100%", maxWidth: "100%", minWidth: 0 }}>
       <Group justify="space-between">
         <Text fw={700} size="xl">コマンド一覧</Text>
         <Group align="flex-end">
@@ -283,5 +285,6 @@ export default function CommandsPage() {
       </Modal>
 
     </Stack>
+    </DefaultLayout>
   );
 }
