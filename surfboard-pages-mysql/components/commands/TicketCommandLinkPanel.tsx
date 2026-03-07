@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Alert, Group, Stack, Table, Text } from "@mantine/core";
 import { CommandList } from "./CommandList";
 import { Command, PlatformLink } from "./types";
+import { urlEllipsisStyle } from "@/lib/urlEllipsis";
 
 export const TicketCommandLinkPanel = ({
   platformId,
@@ -86,7 +87,13 @@ export const TicketCommandLinkPanel = ({
               <Table.Tr key={link.id}>
                 <Table.Td>{link.title}</Table.Td>
                 <Table.Td>
-                  <a href={link.resolvedUrl ?? link.urlTemplate} target="_blank" rel="noreferrer">
+                  <a
+                    href={link.resolvedUrl ?? link.urlTemplate}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ ...urlEllipsisStyle, maxWidth: 420 }}
+                    title={link.resolvedUrl ?? link.urlTemplate}
+                  >
                     {link.resolvedUrl ?? link.urlTemplate}
                   </a>
                 </Table.Td>
@@ -119,4 +126,3 @@ export const TicketCommandLinkPanel = ({
     </Stack>
   );
 };
-

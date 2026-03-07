@@ -38,35 +38,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!id) return res.status(400).json({ error: "invalid id" });
 
   if (req.method === "PUT") {
-    const body = req.body || {};
-    if (body.delete === true) {
-      await execute("UPDATE PlatformLink SET deletedAt = NOW(3), updatedAt = NOW(3), updatedBy = ? WHERE id = ?", [actorName, id]);
+    try {
+      const body = req.body || {};
+      if (body.delete === true) {
+        await execute("UPDATE PlatformLink SET deletedAt = NOW(3), updatedAt = NOW(3), updatedBy = ? WHERE id = ?", [actorName, id]);
+        return res.status(200).json({ ok: true });
+      }
+      await execute(
+        `UPDATE PlatformLink
+         SET title=?, urlTemplate=?, commentTemplate=?, platformId=?, vendorId=?, hostTypeId=?, deviceBindingMode=?, updatedBy=?, updatedAt=NOW(3)
+         WHERE id = ? AND deletedAt IS NULL`,
+        [
+          String(body.title || "").trim(),
+          String(body.urlTemplate || "").trim(),
+          body.commentTemplate ? String(body.commentTemplate) : null,
+          body.platformId ? Number(body.platformId) : null,
+          body.vendorId ? Number(body.vendorId) : null,
+          Number(body.hostTypeId || 0) || null,
+          body.deviceBindingMode === "EXCLUDE_FROM_DEVICE" ? "EXCLUDE_FROM_DEVICE" : "INCLUDE_IN_DEVICE",
+          actorName,
+          id
+        ]
+      );
+
+      await execute("DELETE FROM PlatformLinkTag WHERE platformLinkId = ?", [id]);
+      const tags = await ensureTags(Array.isArray(body.tags) ? body.tags : []);
+      for (const t of tags) {
+        await execute("INSERT IGNORE INTO PlatformLinkTag (platformLinkId, tagId) VALUES (?, ?)", [id, t.id]);
+      }
+
       return res.status(200).json({ ok: true });
+    } catch (error: any) {
+      if (error?.code === "ER_DATA_TOO_LONG" || error?.errno === 1406) {
+        return res.status(400).json({ error: "URLまたはコメントが長すぎます。DBカラム長を拡張してください。" });
+      }
+      throw error;
     }
-    await execute(
-      `UPDATE PlatformLink
-       SET title=?, urlTemplate=?, commentTemplate=?, platformId=?, vendorId=?, hostTypeId=?, deviceBindingMode=?, updatedBy=?, updatedAt=NOW(3)
-       WHERE id = ? AND deletedAt IS NULL`,
-      [
-        String(body.title || "").trim(),
-        String(body.urlTemplate || "").trim(),
-        body.commentTemplate ? String(body.commentTemplate) : null,
-        body.platformId ? Number(body.platformId) : null,
-        body.vendorId ? Number(body.vendorId) : null,
-        Number(body.hostTypeId || 0) || null,
-        body.deviceBindingMode === "EXCLUDE_FROM_DEVICE" ? "EXCLUDE_FROM_DEVICE" : "INCLUDE_IN_DEVICE",
-        actorName,
-        id
-      ]
-    );
-
-    await execute("DELETE FROM PlatformLinkTag WHERE platformLinkId = ?", [id]);
-    const tags = await ensureTags(Array.isArray(body.tags) ? body.tags : []);
-    for (const t of tags) {
-      await execute("INSERT IGNORE INTO PlatformLinkTag (platformLinkId, tagId) VALUES (?, ?)", [id, t.id]);
-    }
-
-    return res.status(200).json({ ok: true });
   }
 
   if (req.method === "DELETE") {

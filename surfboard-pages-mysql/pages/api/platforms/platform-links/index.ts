@@ -206,37 +206,61 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === "POST") {
-    const body = req.body || {};
-    const hostTypeId = Number(body.hostTypeId || 0) || null;
-    const singlePlatformId = body.platformId ? Number(body.platformId) : null;
-    const platformIds = Array.isArray(body.platformIds)
-      ? Array.from(new Set(body.platformIds.map((v: unknown) => Number(v)).filter((v: number) => Number.isInteger(v) && v > 0)))
-      : [];
-    const effectivePlatformIds =
-      platformIds.length > 0 ? platformIds : (singlePlatformId ? [singlePlatformId] : []);
-    const vendorId = body.vendorId ? Number(body.vendorId) : null;
-    if (!hostTypeId) {
-      return res.status(400).json({ error: "hostTypeId は必須です。" });
-    }
+    try {
+      const body = req.body || {};
+      const hostTypeId = Number(body.hostTypeId || 0) || null;
+      const singlePlatformId = body.platformId ? Number(body.platformId) : null;
+      const platformIds = Array.isArray(body.platformIds)
+        ? Array.from(new Set(body.platformIds.map((v: unknown) => Number(v)).filter((v: number) => Number.isInteger(v) && v > 0)))
+        : [];
+      const effectivePlatformIds =
+        platformIds.length > 0 ? platformIds : (singlePlatformId ? [singlePlatformId] : []);
+      const vendorId = body.vendorId ? Number(body.vendorId) : null;
+      if (!hostTypeId) {
+        return res.status(400).json({ error: "hostTypeId は必須です。" });
+      }
 
-    const tags = await ensureLinkTags(Array.isArray(body.tags) ? body.tags : []);
-    const createdIds: number[] = [];
+      const tags = await ensureLinkTags(Array.isArray(body.tags) ? body.tags : []);
+      const createdIds: number[] = [];
 
-    if (effectivePlatformIds.length > 0) {
-      for (const platformId of effectivePlatformIds) {
+      if (effectivePlatformIds.length > 0) {
+        for (const platformId of effectivePlatformIds) {
+          const maxRows = await query<{ maxOrder: number | null }>(
+            "SELECT MAX(orderIndex) AS maxOrder FROM PlatformLink WHERE hostTypeId = ? AND ((platformId <=> ?) AND (vendorId <=> NULL)) AND deletedAt IS NULL",
+            [hostTypeId, platformId]
+          );
+          const result = await execute(
+            `INSERT INTO PlatformLink
+             (title, urlTemplate, commentTemplate, platformId, vendorId, hostTypeId, visibility, ownerUserId, deviceBindingMode, orderIndex, createdBy, updatedBy, createdAt, updatedAt)
+             VALUES (?, ?, ?, ?, NULL, ?, 'PUBLIC', NULL, ?, ?, ?, ?, NOW(3), NOW(3))`,
+            [
+              String(body.title || "").trim(),
+              String(body.urlTemplate || "").trim(),
+              body.commentTemplate ? String(body.commentTemplate) : null,
+              platformId,
+              hostTypeId,
+              body.deviceBindingMode === "EXCLUDE_FROM_DEVICE" ? "EXCLUDE_FROM_DEVICE" : "INCLUDE_IN_DEVICE",
+              Number(maxRows[0]?.maxOrder ?? 0) + 1,
+              actorName,
+              actorName
+            ]
+          );
+          createdIds.push(result.insertId);
+        }
+      } else {
         const maxRows = await query<{ maxOrder: number | null }>(
-          "SELECT MAX(orderIndex) AS maxOrder FROM PlatformLink WHERE hostTypeId = ? AND ((platformId <=> ?) AND (vendorId <=> NULL)) AND deletedAt IS NULL",
-          [hostTypeId, platformId]
+          "SELECT MAX(orderIndex) AS maxOrder FROM PlatformLink WHERE hostTypeId = ? AND ((platformId <=> NULL) AND (vendorId <=> ?)) AND deletedAt IS NULL",
+          [hostTypeId, vendorId]
         );
         const result = await execute(
           `INSERT INTO PlatformLink
            (title, urlTemplate, commentTemplate, platformId, vendorId, hostTypeId, visibility, ownerUserId, deviceBindingMode, orderIndex, createdBy, updatedBy, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, NULL, ?, 'PUBLIC', NULL, ?, ?, ?, ?, NOW(3), NOW(3))`,
+           VALUES (?, ?, ?, NULL, ?, ?, 'PUBLIC', NULL, ?, ?, ?, ?, NOW(3), NOW(3))`,
           [
             String(body.title || "").trim(),
             String(body.urlTemplate || "").trim(),
             body.commentTemplate ? String(body.commentTemplate) : null,
-            platformId,
+            vendorId,
             hostTypeId,
             body.deviceBindingMode === "EXCLUDE_FROM_DEVICE" ? "EXCLUDE_FROM_DEVICE" : "INCLUDE_IN_DEVICE",
             Number(maxRows[0]?.maxOrder ?? 0) + 1,
@@ -246,37 +270,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         );
         createdIds.push(result.insertId);
       }
-    } else {
-      const maxRows = await query<{ maxOrder: number | null }>(
-        "SELECT MAX(orderIndex) AS maxOrder FROM PlatformLink WHERE hostTypeId = ? AND ((platformId <=> NULL) AND (vendorId <=> ?)) AND deletedAt IS NULL",
-        [hostTypeId, vendorId]
-      );
-      const result = await execute(
-        `INSERT INTO PlatformLink
-         (title, urlTemplate, commentTemplate, platformId, vendorId, hostTypeId, visibility, ownerUserId, deviceBindingMode, orderIndex, createdBy, updatedBy, createdAt, updatedAt)
-         VALUES (?, ?, ?, NULL, ?, ?, 'PUBLIC', NULL, ?, ?, ?, ?, NOW(3), NOW(3))`,
-        [
-          String(body.title || "").trim(),
-          String(body.urlTemplate || "").trim(),
-          body.commentTemplate ? String(body.commentTemplate) : null,
-          vendorId,
-          hostTypeId,
-          body.deviceBindingMode === "EXCLUDE_FROM_DEVICE" ? "EXCLUDE_FROM_DEVICE" : "INCLUDE_IN_DEVICE",
-          Number(maxRows[0]?.maxOrder ?? 0) + 1,
-          actorName,
-          actorName
-        ]
-      );
-      createdIds.push(result.insertId);
-    }
 
-    for (const createdId of createdIds) {
-      for (const t of tags) {
-        await execute("INSERT IGNORE INTO PlatformLinkTag (platformLinkId, tagId) VALUES (?, ?)", [createdId, t.id]);
+      for (const createdId of createdIds) {
+        for (const t of tags) {
+          await execute("INSERT IGNORE INTO PlatformLinkTag (platformLinkId, tagId) VALUES (?, ?)", [createdId, t.id]);
+        }
       }
-    }
 
-    return res.status(200).json({ id: createdIds[0], ids: createdIds });
+      return res.status(200).json({ id: createdIds[0], ids: createdIds });
+    } catch (error: any) {
+      if (error?.code === "ER_DATA_TOO_LONG" || error?.errno === 1406) {
+        return res.status(400).json({ error: "URLまたはコメントが長すぎます。DBカラム長を拡張してください。" });
+      }
+      throw error;
+    }
   }
 
   return res.status(405).json({ error: "Method not allowed" });

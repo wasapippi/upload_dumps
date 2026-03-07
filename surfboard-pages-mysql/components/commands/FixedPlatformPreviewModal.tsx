@@ -7,6 +7,7 @@ import { CommandList } from "./CommandList";
 import { CommandPaginationBar } from "./CommandPaginationBar";
 import { PlatformLinkEditorModal } from "./PlatformLinkEditorModal";
 import { CommandEditor } from "./CommandEditor";
+import { urlEllipsisStyle } from "@/lib/urlEllipsis";
 
 type Category = { id: number; name: string };
 type Vendor = { id: number; name: string };
@@ -768,7 +769,8 @@ export const FixedPlatformPreviewModal = ({
                                       href={link.resolvedUrl ?? link.urlTemplate}
                                       target="_blank"
                                       rel="noreferrer"
-                                      style={{ fontSize: 12, wordBreak: "break-all" }}
+                                      style={{ fontSize: 12, ...urlEllipsisStyle }}
+                                      title={link.resolvedUrl ?? link.urlTemplate}
                                     >
                                       {link.resolvedUrl ?? link.urlTemplate}
                                     </a>

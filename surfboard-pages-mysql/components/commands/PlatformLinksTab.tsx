@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { Badge, Button, Group, Paper, SegmentedControl, Stack, Text, TextInput, Tooltip } from "@mantine/core";
 import { PlatformLink, Tag } from "./types";
+import { urlEllipsisStyle } from "@/lib/urlEllipsis";
 
 type Props = {
   linkReorderMode: boolean;
@@ -148,7 +149,8 @@ export const PlatformLinksTab = ({
                                 href={link.resolvedUrl ?? link.urlTemplate}
                                 target="_blank"
                                 rel="noreferrer"
-                                style={{ fontSize: 12, wordBreak: "break-all" }}
+                                style={{ fontSize: 12, ...urlEllipsisStyle }}
+                                title={link.resolvedUrl ?? link.urlTemplate}
                               >
                                 {link.resolvedUrl ?? link.urlTemplate}
                               </a>

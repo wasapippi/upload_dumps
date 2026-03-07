@@ -7,6 +7,7 @@ import { CommandPaginationBar } from "@/components/commands/CommandPaginationBar
 import { PlatformLinkEditorModal } from "@/components/commands/PlatformLinkEditorModal";
 import { HostType, Platform, PlatformLink, Tag } from "@/components/commands/types";
 import { isCommonPlaceholderName } from "@/lib/commonPlaceholder";
+import { urlEllipsisStyle } from "@/lib/urlEllipsis";
 
 const PAGE_SIZE = 20;
 type Vendor = { id: number; name: string };
@@ -590,7 +591,13 @@ export default function LinksPage() {
                         <Group justify="space-between" align="center" wrap="nowrap">
                           <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
                             <Text fw={600} size="sm" lineClamp={1}>{link.title}</Text>
-                            <a href={link.resolvedUrl ?? link.urlTemplate} target="_blank" rel="noreferrer" style={{ fontSize: 12, wordBreak: "break-all" }}>
+                            <a
+                              href={link.resolvedUrl ?? link.urlTemplate}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ fontSize: 12, ...urlEllipsisStyle }}
+                              title={link.resolvedUrl ?? link.urlTemplate}
+                            >
                               {link.resolvedUrl ?? link.urlTemplate}
                             </a>
                             <Group gap={6}>

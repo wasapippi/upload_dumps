@@ -197,8 +197,8 @@ DROP TABLE IF EXISTS `PlatformLink`;
 CREATE TABLE `PlatformLink` (
   `id` int NOT NULL AUTO_INCREMENT,
   `title` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `urlTemplate` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `commentTemplate` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `urlTemplate` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `commentTemplate` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `platformId` int DEFAULT NULL,
   `vendorId` int DEFAULT NULL,
   `hostTypeId` int NOT NULL,
@@ -251,4 +251,3 @@ INSERT INTO `PlatformLinkTag` VALUES (8,36),(8,37);
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
