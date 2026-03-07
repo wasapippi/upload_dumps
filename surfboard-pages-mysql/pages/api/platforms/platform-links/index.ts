@@ -55,6 +55,13 @@ const ensureLinkTags = async (names: string[]) => {
   );
 };
 
+const resolveHostTypeIdWithCommonFallback = async (rawHostTypeId: unknown) => {
+  const parsed = Number(rawHostTypeId || 0) || null;
+  if (parsed) return parsed;
+  const rows = await query<{ id: number }>("SELECT id FROM HostType WHERE name = ? ORDER BY id ASC LIMIT 1", ["共通"]);
+  return rows[0]?.id ?? null;
+};
+
 const listLinks = async (req: NextApiRequest) => {
   const q = String(req.query.q || "").trim();
   const hostName = String(req.query.hostName || "").trim();
@@ -208,7 +215,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === "POST") {
     try {
       const body = req.body || {};
-      const hostTypeId = Number(body.hostTypeId || 0) || null;
+      const hostTypeId = await resolveHostTypeIdWithCommonFallback(body.hostTypeId);
       const singlePlatformId = body.platformId ? Number(body.platformId) : null;
       const platformIds = Array.isArray(body.platformIds)
         ? Array.from(new Set(body.platformIds.map((v: unknown) => Number(v)).filter((v: number) => Number.isInteger(v) && v > 0)))
@@ -216,9 +223,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const effectivePlatformIds =
         platformIds.length > 0 ? platformIds : (singlePlatformId ? [singlePlatformId] : []);
       const vendorId = body.vendorId ? Number(body.vendorId) : null;
-      if (!hostTypeId) {
-        return res.status(400).json({ error: "hostTypeId は必須です。" });
-      }
+      if (!hostTypeId) return res.status(400).json({ error: "共通ホスト種別が見つかりません。" });
 
       const tags = await ensureLinkTags(Array.isArray(body.tags) ? body.tags : []);
       const createdIds: number[] = [];

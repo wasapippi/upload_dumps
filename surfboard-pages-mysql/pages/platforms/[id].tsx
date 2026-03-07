@@ -334,14 +334,10 @@ export default function PlatformDetailPage() {
     const selectedHostTypeId =
       linkScope === "common"
         ? Number(commonHostTypeId || 0)
-        : Number(editorHostTypeId || hostTypeId || 0);
+        : Number(editorHostTypeId || hostTypeId || commonHostTypeId || 0);
     const selectedVendorId = Number(editorVendorId || selectedPlatform?.vendor?.id || 0) || null;
     if (!selectedHostTypeId) {
-      if (linkScope === "common") {
-        setError("共通ホスト種別が見つかりません。taxonomyで「共通」を作成してください。");
-        return;
-      }
-      setError("ホスト種別を選択してください。");
+      setError("共通ホスト種別が見つかりません。taxonomyで「共通」を作成してください。");
       return;
     }
     const selectedPlatformIds =

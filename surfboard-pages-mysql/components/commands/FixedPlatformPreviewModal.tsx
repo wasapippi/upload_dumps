@@ -80,6 +80,32 @@ export const FixedPlatformPreviewModal = ({
   const [editorHostTypeId, setEditorHostTypeId] = useState<string>(hostTypeId);
   const [editorPlatformId, setEditorPlatformId] = useState<string>(platformId);
   const [editorVendorId, setEditorVendorId] = useState<string>(selectedPlatformVendorId ?? "");
+
+  const dedupePlatformLinks = (items: PlatformLink[]) => {
+    const byKey = new Map<string, PlatformLink>();
+    for (const link of items) {
+      const key = [
+        link.title ?? "",
+        link.urlTemplate ?? "",
+        link.commentTemplate ?? "",
+        link.platformId ?? "",
+        link.vendorId ?? ""
+      ].join("||");
+      const existing = byKey.get(key);
+      if (!existing) {
+        byKey.set(key, link);
+        continue;
+      }
+      const mergedTagMap = new Map<number, NonNullable<PlatformLink["tags"]>[number]>();
+      [...(existing.tags ?? []), ...(link.tags ?? [])].forEach((item) => mergedTagMap.set(item.tag.id, item));
+      if ((link.id ?? Number.MAX_SAFE_INTEGER) < (existing.id ?? Number.MAX_SAFE_INTEGER)) {
+        byKey.set(key, { ...link, tags: Array.from(mergedTagMap.values()) });
+      } else {
+        byKey.set(key, { ...existing, tags: Array.from(mergedTagMap.values()) });
+      }
+    }
+    return Array.from(byKey.values());
+  };
   const handleLinkScopeChange = (value: "platform" | "vendor" | "common") => {
     setLinkScope(value);
     if (value === "common") {
@@ -276,7 +302,7 @@ export const FixedPlatformPreviewModal = ({
       const commonLinks = commonRes.ok ? ((await commonRes.json()) as PlatformLink[]) : [];
       const merged = new Map<number, PlatformLink>();
       [...normalLinks, ...commonLinks].forEach((link) => merged.set(link.id, link));
-      setAllLinks(Array.from(merged.values()));
+      setAllLinks(dedupePlatformLinks(Array.from(merged.values())));
     };
     loadLinks();
   }, [hostTypeId, opened, platformId]);
@@ -470,7 +496,7 @@ export const FixedPlatformPreviewModal = ({
     const numericHostTypeId =
       linkScope === "common"
         ? Number(commonHostTypeId || 0)
-        : Number(editorHostTypeId || hostTypeId || 0);
+        : Number(editorHostTypeId || hostTypeId || commonHostTypeId || 0);
     const numericVendorId =
       Number(editorVendorId || editingLink?.vendorId || selectedPlatformVendorId || 0) || null;
     const resolvedHostTypeId = Number(editingLink?.hostTypeId ?? numericHostTypeId);
@@ -484,11 +510,7 @@ export const FixedPlatformPreviewModal = ({
       return;
     }
     if (!Number.isFinite(resolvedHostTypeId) || resolvedHostTypeId <= 0) {
-      if (linkScope === "common") {
-        setSaveError("共通ホスト種別が見つかりません。taxonomyで「共通」を作成してください。");
-        return;
-      }
-      setSaveError("ホスト種別を選択してください。");
+      setSaveError("共通ホスト種別が見つかりません。taxonomyで「共通」を作成してください。");
       return;
     }
 
@@ -537,7 +559,7 @@ export const FixedPlatformPreviewModal = ({
       const commonLinks = commonRes.ok ? ((await commonRes.json()) as PlatformLink[]) : [];
       const merged = new Map<number, PlatformLink>();
       [...normalLinks, ...commonLinks].forEach((link) => merged.set(link.id, link));
-      setAllLinks(Array.from(merged.values()));
+      setAllLinks(dedupePlatformLinks(Array.from(merged.values())));
     }
   };
 

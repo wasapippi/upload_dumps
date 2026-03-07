@@ -326,18 +326,14 @@ export default function LinksPage() {
 
   const saveLink = async () => {
     const commonHostTypeId = hostTypes.find((item) => item.name === "共通")?.id ?? null;
-    if (linkScope === "common" && !commonHostTypeId) {
+    if (!commonHostTypeId) {
       setSaveError("共通ホスト種別が見つかりません。taxonomyで「共通」を作成してください。");
       return;
     }
     const selectedHostTypeId =
       linkScope === "common"
         ? String(commonHostTypeId ?? "")
-        : (editorHostTypeId || editingLink?.hostTypeId?.toString());
-    if (!selectedHostTypeId) {
-      setSaveError("ホスト種別を選択してください。");
-      return;
-    }
+        : (editorHostTypeId || editingLink?.hostTypeId?.toString() || String(commonHostTypeId));
     const selectedPlatformIds =
       linkScope === "platform"
         ? (editingLink

@@ -32,6 +32,13 @@ const ensureTags = async (names: string[]) => {
   );
 };
 
+const resolveHostTypeIdWithCommonFallback = async (rawHostTypeId: unknown) => {
+  const parsed = Number(rawHostTypeId || 0) || null;
+  if (parsed) return parsed;
+  const rows = await query<{ id: number }>("SELECT id FROM HostType WHERE name = ? ORDER BY id ASC LIMIT 1", ["共通"]);
+  return rows[0]?.id ?? null;
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const actorName = resolveActorName(req);
   const id = Number(req.query.id);
@@ -44,6 +51,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         await execute("UPDATE PlatformLink SET deletedAt = NOW(3), updatedAt = NOW(3), updatedBy = ? WHERE id = ?", [actorName, id]);
         return res.status(200).json({ ok: true });
       }
+      const resolvedHostTypeId = await resolveHostTypeIdWithCommonFallback(body.hostTypeId);
+      if (!resolvedHostTypeId) return res.status(400).json({ error: "共通ホスト種別が見つかりません。" });
       await execute(
         `UPDATE PlatformLink
          SET title=?, urlTemplate=?, commentTemplate=?, platformId=?, vendorId=?, hostTypeId=?, deviceBindingMode=?, updatedBy=?, updatedAt=NOW(3)
@@ -54,7 +63,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           body.commentTemplate ? String(body.commentTemplate) : null,
           body.platformId ? Number(body.platformId) : null,
           body.vendorId ? Number(body.vendorId) : null,
-          Number(body.hostTypeId || 0) || null,
+          resolvedHostTypeId,
           body.deviceBindingMode === "EXCLUDE_FROM_DEVICE" ? "EXCLUDE_FROM_DEVICE" : "INCLUDE_IN_DEVICE",
           actorName,
           id

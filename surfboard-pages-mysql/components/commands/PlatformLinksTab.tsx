@@ -54,7 +54,7 @@ export const PlatformLinksTab = ({
   }, [links]);
 
   return (
-    <Stack gap="xs">
+    <Stack gap="xs" style={{ width: "100%", minWidth: 0 }}>
       <Group justify="flex-end">
         <Button variant={linkReorderMode ? "filled" : "light"} onClick={onToggleReorderMode}>
           {linkReorderMode ? "順番変更を終了" : "順番変更"}
@@ -116,7 +116,7 @@ export const PlatformLinksTab = ({
       ) : null}
 
       {groupedLinks.map((hostGroup) => (
-        <Stack key={hostGroup.hostTypeId} gap="xs">
+        <Stack key={hostGroup.hostTypeId} gap="xs" style={{ width: "100%", minWidth: 0 }}>
           <Text fw={700} size="sm">{hostGroup.hostTypeName}</Text>
           {Array.from(hostGroup.platforms.entries()).map(([key, list]) => {
             const platformLabel =
@@ -126,7 +126,7 @@ export const PlatformLinksTab = ({
                   ? `${list[0].vendor?.name ?? "ベンダ"} 共通`
                   : (list[0].platform?.name ?? "機種固有");
             return (
-              <Stack key={`${hostGroup.hostTypeId}-${key}`} gap={4}>
+              <Stack key={`${hostGroup.hostTypeId}-${key}`} gap={4} style={{ width: "100%", minWidth: 0 }}>
                 <Text size="xs" c="dimmed">{platformLabel}</Text>
                 {list.map((link) => {
                   const index = links.findIndex((item) => item.id === link.id);
@@ -140,10 +140,10 @@ export const PlatformLinksTab = ({
                       position="top-start"
                       openDelay={150}
                     >
-                      <Paper withBorder p="sm" radius="sm">
+                      <Paper withBorder p="sm" radius="sm" style={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                         <Stack gap={6}>
-                          <Group justify="space-between" align="center" wrap="nowrap">
-                            <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
+                          <Group justify="space-between" align="center" wrap="nowrap" style={{ width: "100%", minWidth: 0 }}>
+                            <Stack gap={2} style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
                               <Text fw={600} size="sm" lineClamp={1}>{link.title}</Text>
                               <a
                                 href={link.resolvedUrl ?? link.urlTemplate}
@@ -155,7 +155,7 @@ export const PlatformLinksTab = ({
                                 {link.resolvedUrl ?? link.urlTemplate}
                               </a>
                             </Stack>
-                            <Group gap={6}>
+                            <Group gap={6} style={{ flexShrink: 0 }}>
                               {linkReorderMode ? (
                                 <>
                                   <Button
