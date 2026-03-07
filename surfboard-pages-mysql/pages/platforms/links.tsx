@@ -565,9 +565,9 @@ export default function LinksPage() {
         copyLabel="表示中をまとめて別タブで開く"
       />
 
-      <Stack gap="md">
+      <Stack gap="md" style={{ width: "100%", minWidth: 0, maxWidth: "100%", overflowX: "hidden" }}>
         {groupedPagedLinks.map((hostGroup) => (
-          <Stack key={hostGroup.hostTypeId} gap="xs">
+          <Stack key={hostGroup.hostTypeId} gap="xs" style={{ width: "100%", minWidth: 0, maxWidth: "100%" }}>
             <Text fw={700} size="sm">{hostGroup.hostTypeName}</Text>
             {Array.from(hostGroup.platforms.entries()).map(([key, list]) => {
               const platformLabel =
@@ -577,7 +577,7 @@ export default function LinksPage() {
                     ? `${list[0].vendor?.name ?? "ベンダ"} 共通`
                     : (list[0].platform?.name ?? "機種固有");
               return (
-                <Stack key={`${hostGroup.hostTypeId}-${key}`} gap={4}>
+                <Stack key={`${hostGroup.hostTypeId}-${key}`} gap={4} style={{ width: "100%", minWidth: 0, maxWidth: "100%" }}>
                   <Text size="xs" c="dimmed">{platformLabel}</Text>
                   {list.map((link) => (
                     <Tooltip
@@ -589,15 +589,15 @@ export default function LinksPage() {
                       position="top-start"
                       openDelay={150}
                     >
-                      <Paper withBorder p="sm" radius="sm">
-                        <Group justify="space-between" align="center" wrap="nowrap">
-                          <Stack gap={2} style={{ minWidth: 0, flex: 1 }}>
+                      <Paper withBorder p="sm" radius="sm" style={{ width: "100%", minWidth: 0, maxWidth: "100%", overflow: "hidden" }}>
+                        <Group justify="space-between" align="center" wrap="nowrap" style={{ width: "100%", minWidth: 0 }}>
+                          <Stack gap={2} style={{ minWidth: 0, width: 0, flex: "1 1 0%", overflow: "hidden" }}>
                             <Text fw={600} size="sm" lineClamp={1}>{link.title}</Text>
                             <a
                               href={link.resolvedUrl ?? link.urlTemplate}
                               target="_blank"
                               rel="noreferrer"
-                              style={{ fontSize: 12, ...urlEllipsisStyle }}
+                              style={{ fontSize: 12, width: "100%", ...urlEllipsisStyle }}
                               title={link.resolvedUrl ?? link.urlTemplate}
                             >
                               {link.resolvedUrl ?? link.urlTemplate}
