@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActionIcon,
   Checkbox,
   Button,
   Group,
   Modal,
-  NumberInput,
   Select,
   Stack,
   Table,
@@ -14,6 +14,7 @@ import {
   Text,
   TextInput
 } from "@mantine/core";
+import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 import { HostType, Platform } from "@/components/commands/types";
 
 type Category = { id: number; name: string; groupOrderIndex: number };
@@ -40,6 +41,35 @@ export default function TaxonomyPage() {
   const [mappingPlatformIds, setMappingPlatformIds] = useState<number[]>([]);
   const [mappingSaving, setMappingSaving] = useState(false);
 
+  const sortedCategories = useMemo(
+    () => [...categories].sort((a, b) => a.groupOrderIndex - b.groupOrderIndex || a.id - b.id),
+    [categories]
+  );
+  const sortedHostTypes = useMemo(
+    () => [...hostTypes].sort((a, b) => a.groupOrderIndex - b.groupOrderIndex || a.id - b.id),
+    [hostTypes]
+  );
+  const sortedPlatforms = useMemo(
+    () => [...platforms].sort((a, b) => a.name.localeCompare(b.name)),
+    [platforms]
+  );
+  const sortedVendors = useMemo(
+    () => [...vendors].sort((a, b) => a.name.localeCompare(b.name)),
+    [vendors]
+  );
+
+  const needsSequentialOrder = <T,>(items: T[], getOrder: (item: T) => number) =>
+    items.some((item, index) => getOrder(item) !== index + 1);
+
+  const reorderByIds = async (endpoint: string, ids: number[]) => {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids })
+    });
+    return res.ok;
+  };
+
   const load = useCallback(async () => {
     const [categoryRes, hostTypeRes, platformRes, vendorRes] = await Promise.all([
       fetch("/api/platforms/categories"),
@@ -47,10 +77,37 @@ export default function TaxonomyPage() {
       fetch("/api/platforms/platforms"),
       fetch("/api/platforms/vendors")
     ]);
-    if (categoryRes.ok) setCategories(await categoryRes.json());
-    if (hostTypeRes.ok) setHostTypes(await hostTypeRes.json());
-    if (platformRes.ok) setPlatforms(await platformRes.json());
-    if (vendorRes.ok) setVendors(await vendorRes.json());
+    let categoryRows: Category[] = categoryRes.ok ? await categoryRes.json() : [];
+    let hostTypeRows: HostType[] = hostTypeRes.ok ? await hostTypeRes.json() : [];
+    const platformRows: Platform[] = platformRes.ok ? await platformRes.json() : [];
+    const vendorRows: Vendor[] = vendorRes.ok ? await vendorRes.json() : [];
+
+    const sortedCategoryRows = [...categoryRows].sort((a, b) => a.groupOrderIndex - b.groupOrderIndex || a.id - b.id);
+    const sortedHostTypeRows = [...hostTypeRows].sort((a, b) => a.groupOrderIndex - b.groupOrderIndex || a.id - b.id);
+
+    const normalizeCategoryNeeded = needsSequentialOrder(sortedCategoryRows, (item) => item.groupOrderIndex);
+    const normalizeHostTypeNeeded = needsSequentialOrder(sortedHostTypeRows, (item) => item.groupOrderIndex);
+
+    if (normalizeCategoryNeeded) {
+      await reorderByIds("/api/platforms/categories/reorder", sortedCategoryRows.map((item) => item.id));
+    }
+    if (normalizeHostTypeNeeded) {
+      await reorderByIds("/api/platforms/host-types/reorder", sortedHostTypeRows.map((item) => item.id));
+    }
+
+    if (normalizeCategoryNeeded || normalizeHostTypeNeeded) {
+      const [categoryRefetch, hostTypeRefetch] = await Promise.all([
+        fetch("/api/platforms/categories"),
+        fetch("/api/platforms/host-types")
+      ]);
+      if (categoryRefetch.ok) categoryRows = await categoryRefetch.json();
+      if (hostTypeRefetch.ok) hostTypeRows = await hostTypeRefetch.json();
+    }
+
+    setCategories(categoryRows);
+    setHostTypes(hostTypeRows);
+    setPlatforms(platformRows);
+    setVendors(vendorRows);
   }, []);
 
   useEffect(() => {
@@ -80,7 +137,7 @@ export default function TaxonomyPage() {
   const resetForm = () => {
     setEditingId(null);
     setName("");
-    setGroupOrderIndex(1);
+    setGroupOrderIndex(0);
     setCategoryId("");
     setVendorId("");
     setError(null);
@@ -89,6 +146,11 @@ export default function TaxonomyPage() {
   const openCreate = (nextMode: EditMode) => {
     resetForm();
     setMode(nextMode);
+    if (nextMode === "category") {
+      setGroupOrderIndex(sortedCategories.length + 1);
+    } else if (nextMode === "hostType") {
+      setGroupOrderIndex(sortedHostTypes.length + 1);
+    }
     setModalOpen(true);
   };
 
@@ -139,7 +201,9 @@ export default function TaxonomyPage() {
     let url = "";
 
     if (mode === "category") {
-      payload.groupOrderIndex = groupOrderIndex;
+      payload.groupOrderIndex = editingId
+        ? sortedCategories.find((item) => item.id === editingId)?.groupOrderIndex ?? groupOrderIndex
+        : sortedCategories.length + 1;
       url = editingId ? `/api/platforms/categories/${editingId}` : "/api/platforms/categories";
     } else if (mode === "hostType") {
       if (!categoryId) {
@@ -147,7 +211,9 @@ export default function TaxonomyPage() {
         return;
       }
       payload.categoryId = Number(categoryId);
-      payload.groupOrderIndex = groupOrderIndex;
+      payload.groupOrderIndex = editingId
+        ? sortedHostTypes.find((item) => item.id === editingId)?.groupOrderIndex ?? groupOrderIndex
+        : sortedHostTypes.length + 1;
       url = editingId ? `/api/platforms/host-types/${editingId}` : "/api/platforms/host-types";
     } else if (mode === "platform") {
       if (!vendorId) {
@@ -240,6 +306,28 @@ export default function TaxonomyPage() {
     return editingId ? "ベンダを編集" : "ベンダを追加";
   }, [editingId, mode]);
 
+  const reorderCategory = async (id: number, direction: "up" | "down") => {
+    const ids = sortedCategories.map((item) => item.id);
+    const index = ids.indexOf(id);
+    if (index < 0) return;
+    const swapIndex = direction === "up" ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= ids.length) return;
+    [ids[index], ids[swapIndex]] = [ids[swapIndex], ids[index]];
+    const ok = await reorderByIds("/api/platforms/categories/reorder", ids);
+    if (ok) await load();
+  };
+
+  const reorderHostType = async (id: number, direction: "up" | "down") => {
+    const ids = sortedHostTypes.map((item) => item.id);
+    const index = ids.indexOf(id);
+    if (index < 0) return;
+    const swapIndex = direction === "up" ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= ids.length) return;
+    [ids[index], ids[swapIndex]] = [ids[swapIndex], ids[index]];
+    const ok = await reorderByIds("/api/platforms/host-types/reorder", ids);
+    if (ok) await load();
+  };
+
   const toggleMappingPlatform = (platformId: number) => {
     setMappingPlatformIds((prev) =>
       prev.includes(platformId) ? prev.filter((id) => id !== platformId) : [...prev, platformId]
@@ -293,13 +381,31 @@ export default function TaxonomyPage() {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {categories.map((item) => (
+              {sortedCategories.map((item) => (
                 <Table.Tr key={item.id}>
                   <Table.Td>{item.id}</Table.Td>
                   <Table.Td>{item.name}</Table.Td>
                   <Table.Td>{item.groupOrderIndex}</Table.Td>
                   <Table.Td>
-                    <Button size="compact-xs" variant="light" onClick={() => openEditCategory(item)}>編集</Button>
+                    <Group gap={4} wrap="nowrap">
+                      <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        onClick={() => reorderCategory(item.id, "up")}
+                        aria-label="上へ"
+                      >
+                        <IconChevronUp size={14} />
+                      </ActionIcon>
+                      <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        onClick={() => reorderCategory(item.id, "down")}
+                        aria-label="下へ"
+                      >
+                        <IconChevronDown size={14} />
+                      </ActionIcon>
+                      <Button size="compact-xs" variant="light" onClick={() => openEditCategory(item)}>編集</Button>
+                    </Group>
                   </Table.Td>
                 </Table.Tr>
               ))}
@@ -317,19 +423,36 @@ export default function TaxonomyPage() {
                 <Table.Th>ID</Table.Th>
                 <Table.Th>名称</Table.Th>
                 <Table.Th>分類</Table.Th>
-                <Table.Th>並び</Table.Th>
                 <Table.Th>操作</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {hostTypes.map((item) => (
+              {sortedHostTypes.map((item) => (
                 <Table.Tr key={item.id}>
                   <Table.Td>{item.id}</Table.Td>
                   <Table.Td>{item.name}</Table.Td>
                   <Table.Td>{item.category?.name}</Table.Td>
                   <Table.Td>{item.groupOrderIndex}</Table.Td>
                   <Table.Td>
-                    <Button size="compact-xs" variant="light" onClick={() => openEditHostType(item)}>編集</Button>
+                    <Group gap={4} wrap="nowrap">
+                      <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        onClick={() => reorderHostType(item.id, "up")}
+                        aria-label="上へ"
+                      >
+                        <IconChevronUp size={14} />
+                      </ActionIcon>
+                      <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        onClick={() => reorderHostType(item.id, "down")}
+                        aria-label="下へ"
+                      >
+                        <IconChevronDown size={14} />
+                      </ActionIcon>
+                      <Button size="compact-xs" variant="light" onClick={() => openEditHostType(item)}>編集</Button>
+                    </Group>
                   </Table.Td>
                 </Table.Tr>
               ))}
@@ -351,7 +474,7 @@ export default function TaxonomyPage() {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {platforms.map((item) => (
+              {sortedPlatforms.map((item) => (
                 <Table.Tr key={item.id}>
                   <Table.Td>{item.id}</Table.Td>
                   <Table.Td>{item.name}</Table.Td>
@@ -378,7 +501,7 @@ export default function TaxonomyPage() {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {vendors.map((item) => (
+              {sortedVendors.map((item) => (
                 <Table.Tr key={item.id}>
                   <Table.Td>{item.id}</Table.Td>
                   <Table.Td>{item.name}</Table.Td>
@@ -440,12 +563,9 @@ export default function TaxonomyPage() {
         <Stack gap="sm">
           <TextInput label="名称" value={name} onChange={(e) => setName(e.currentTarget.value)} required />
           {mode === "category" || mode === "hostType" ? (
-            <NumberInput
-              label="並び順"
-              value={groupOrderIndex}
-              onChange={(value) => setGroupOrderIndex(Number(value || 0))}
-              min={0}
-            />
+            <Text size="sm" c="dimmed">
+              並び順は自動採番（末尾追加）です。順序変更は一覧の上下ボタンを使用してください。
+            </Text>
           ) : null}
           {mode === "hostType" ? (
             <Select
