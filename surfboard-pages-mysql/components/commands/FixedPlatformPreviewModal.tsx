@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge, Button, Group, Modal, Paper, SegmentedControl, Stack, Tabs, Text, TextInput, Tooltip } from "@mantine/core";
-import { Command, PlatformLink, Tag } from "./types";
+import { Command, HostType, Platform, PlatformLink, Tag } from "./types";
 import { CommandList } from "./CommandList";
 import { CommandPaginationBar } from "./CommandPaginationBar";
 import { PlatformLinkEditorModal } from "./PlatformLinkEditorModal";
 import { CommandEditor } from "./CommandEditor";
+
+type Category = { id: number; name: string };
+type Vendor = { id: number; name: string };
 
 export const FixedPlatformPreviewModal = ({
   opened,
@@ -68,6 +71,41 @@ export const FixedPlatformPreviewModal = ({
   const [tagInput, setTagInput] = useState("");
   const [tagSuggestions, setTagSuggestions] = useState<Tag[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [hostTypes, setHostTypes] = useState<HostType[]>([]);
+  const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [editorCategoryId, setEditorCategoryId] = useState<string>("");
+  const [editorHostTypeId, setEditorHostTypeId] = useState<string>(hostTypeId);
+  const [editorPlatformId, setEditorPlatformId] = useState<string>(platformId);
+  const [editorVendorId, setEditorVendorId] = useState<string>(selectedPlatformVendorId ?? "");
+
+  useEffect(() => {
+    if (!opened) return;
+    const loadMasters = async () => {
+      const [categoryRes, hostTypeRes, platformRes, vendorRes] = await Promise.all([
+        fetch("/api/platforms/categories"),
+        fetch("/api/platforms/host-types"),
+        fetch("/api/platforms/platforms"),
+        fetch("/api/platforms/vendors")
+      ]);
+      if (categoryRes.ok) setCategories(await categoryRes.json());
+      if (hostTypeRes.ok) setHostTypes(await hostTypeRes.json());
+      if (platformRes.ok) setPlatforms(await platformRes.json());
+      if (vendorRes.ok) setVendors(await vendorRes.json());
+    };
+    loadMasters();
+  }, [opened]);
+
+  useEffect(() => {
+    setEditorHostTypeId(hostTypeId);
+    setEditorPlatformId(platformId);
+    setEditorVendorId(selectedPlatformVendorId ?? "");
+    const currentHostType = hostTypes.find((item) => String(item.id) === hostTypeId);
+    if (currentHostType) {
+      setEditorCategoryId(String(currentHostType.categoryId));
+    }
+  }, [hostTypeId, hostTypes, platformId, selectedPlatformVendorId]);
 
   const fetchCommands = useCallback(async () => {
     if (!platformId) {
@@ -258,6 +296,19 @@ export const FixedPlatformPreviewModal = ({
     return Array.from(map.entries()).map(([hostTypeId, value]) => ({ hostTypeId, ...value }));
   }, [pagedLinks]);
 
+  const filteredEditorHostTypes = useMemo(() => {
+    if (!editorCategoryId) return hostTypes;
+    return hostTypes.filter((item) => item.categoryId === Number(editorCategoryId));
+  }, [editorCategoryId, hostTypes]);
+
+  const filteredEditorPlatforms = useMemo(() => {
+    if (!editorHostTypeId) return platforms;
+    const selectedHostTypeId = Number(editorHostTypeId);
+    return platforms.filter((platform) =>
+      (platform.hostTypeLinks ?? []).some((link) => link.hostTypeId === selectedHostTypeId)
+    );
+  }, [editorHostTypeId, platforms]);
+
   const openDisplayedLinksInTabs = () => {
     const targets = pagedLinks
       .map((link) => link.resolvedUrl ?? link.urlTemplate)
@@ -323,6 +374,14 @@ export const FixedPlatformPreviewModal = ({
     setTagInput("");
     setTagSuggestions([]);
     setSaveError(null);
+    setEditorHostTypeId(String(link.hostTypeId ?? hostTypeId));
+    const fallbackCategoryId =
+      link.hostType?.categoryId ??
+      hostTypes.find((item) => item.id === link.hostTypeId)?.categoryId ??
+      null;
+    setEditorCategoryId(fallbackCategoryId ? String(fallbackCategoryId) : "");
+    setEditorPlatformId(String(link.platformId ?? platformId));
+    setEditorVendorId(String(link.vendorId ?? selectedPlatformVendorId ?? ""));
     setOpenLinkDetail(true);
   };
 
@@ -337,14 +396,19 @@ export const FixedPlatformPreviewModal = ({
     setTagInput("");
     setTagSuggestions([]);
     setSaveError(null);
+    const currentHostType = hostTypes.find((item) => String(item.id) === hostTypeId);
+    setEditorCategoryId(currentHostType ? String(currentHostType.categoryId) : "");
+    setEditorHostTypeId(hostTypeId);
+    setEditorPlatformId(platformId);
+    setEditorVendorId(selectedPlatformVendorId ?? "");
     setOpenLinkDetail(true);
   };
 
   const saveLink = async () => {
-    const numericPlatformId = Number(platformId);
-    const numericHostTypeId = Number(hostTypeId);
+    const numericPlatformId = Number(editorPlatformId || platformId || 0);
+    const numericHostTypeId = Number(editorHostTypeId || hostTypeId || 0);
     const numericVendorId =
-      Number(editingLink?.vendorId ?? 0) || Number(selectedPlatformVendorId ?? 0) || null;
+      Number(editorVendorId || editingLink?.vendorId || selectedPlatformVendorId || 0) || null;
     const resolvedHostTypeId = Number(editingLink?.hostTypeId ?? numericHostTypeId);
 
     if (linkScope === "platform" && !Number.isFinite(numericPlatformId)) {
@@ -447,12 +511,7 @@ export const FixedPlatformPreviewModal = ({
           </Tabs.List>
 
           <Tabs.Panel value="commands" pt="sm">
-            <Group justify="flex-end" mb="xs">
-              <Button size="xs" onClick={() => setOpenCommandCreate(true)}>
-                コマンド追加
-              </Button>
-            </Group>
-            <Group justify="space-between" align="flex-end" mb="xs">
+            <Group justify="space-between" align="flex-end" mb={6}>
               <TextInput
                 size="xs"
                 w={260}
@@ -460,15 +519,20 @@ export const FixedPlatformPreviewModal = ({
                 value={commandQ}
                 onChange={(event) => setCommandQ(event.currentTarget.value)}
               />
-              <CommandPaginationBar
-                total={commandTotal}
-                page={safeCommandPage}
-                totalPages={commandTotalPages}
-                onPrev={() => setCommandPage((prev) => Math.max(prev - 1, 1))}
-                onNext={() => setCommandPage((prev) => Math.min(prev + 1, commandTotalPages))}
-                onCopyAll={() => commandCopyAllAction?.()}
-                copyDisabled={pagedCommands.length === 0}
-              />
+              <Group gap="xs" align="center">
+                <CommandPaginationBar
+                  total={commandTotal}
+                  page={safeCommandPage}
+                  totalPages={commandTotalPages}
+                  onPrev={() => setCommandPage((prev) => Math.max(prev - 1, 1))}
+                  onNext={() => setCommandPage((prev) => Math.min(prev + 1, commandTotalPages))}
+                  onCopyAll={() => commandCopyAllAction?.()}
+                  copyDisabled={pagedCommands.length === 0}
+                />
+                <Button size="xs" onClick={() => setOpenCommandCreate(true)}>
+                  コマンド追加
+                </Button>
+              </Group>
             </Group>
             <Stack gap="xs" mb="xs">
               <Group justify="flex-start" align="center" gap="xs">
@@ -526,10 +590,7 @@ export const FixedPlatformPreviewModal = ({
 
           <Tabs.Panel value="links" pt="sm">
             <Stack gap="xs">
-              <Group justify="flex-end">
-                <Button size="xs" onClick={openCreateModal}>リンク追加</Button>
-              </Group>
-              <Group justify="space-between" align="flex-end" mb="xs">
+              <Group justify="space-between" align="flex-end" mb={6}>
                 <TextInput
                   size="xs"
                   w={260}
@@ -537,16 +598,19 @@ export const FixedPlatformPreviewModal = ({
                   value={linkQ}
                   onChange={(event) => setLinkQ(event.currentTarget.value)}
                 />
-                <CommandPaginationBar
-                  total={linkTotal}
-                  page={safeLinkPage}
-                  totalPages={linkTotalPages}
-                  onPrev={() => setLinkPage((prev) => Math.max(prev - 1, 1))}
-                  onNext={() => setLinkPage((prev) => Math.min(prev + 1, linkTotalPages))}
-                  onCopyAll={openDisplayedLinksInTabs}
-                  copyDisabled={pagedLinks.length === 0}
-                  copyLabel="表示中をまとめて別タブで開く"
-                />
+                <Group gap="xs" align="center">
+                  <CommandPaginationBar
+                    total={linkTotal}
+                    page={safeLinkPage}
+                    totalPages={linkTotalPages}
+                    onPrev={() => setLinkPage((prev) => Math.max(prev - 1, 1))}
+                    onNext={() => setLinkPage((prev) => Math.min(prev + 1, linkTotalPages))}
+                    onCopyAll={openDisplayedLinksInTabs}
+                    copyDisabled={pagedLinks.length === 0}
+                    copyLabel="表示中をまとめて別タブで開く"
+                  />
+                  <Button size="xs" onClick={openCreateModal}>リンク追加</Button>
+                </Group>
               </Group>
               <Stack gap={6} mb="xs">
                 <Group justify="flex-start" align="center" gap="xs">
@@ -672,6 +736,26 @@ export const FixedPlatformPreviewModal = ({
         onTitleChange={setLinkTitle}
         linkScope={linkScope}
         onLinkScopeChange={setLinkScope}
+        showTargetSelectors
+        categories={categories}
+        categoryId={editorCategoryId}
+        onCategoryChange={(value) => {
+          setEditorCategoryId(value);
+          setEditorHostTypeId("");
+          setEditorPlatformId("");
+        }}
+        hostTypes={filteredEditorHostTypes}
+        hostTypeId={editorHostTypeId}
+        onHostTypeChange={(value) => {
+          setEditorHostTypeId(value);
+          setEditorPlatformId("");
+        }}
+        platforms={filteredEditorPlatforms}
+        platformId={editorPlatformId}
+        onPlatformChange={setEditorPlatformId}
+        vendors={vendors}
+        vendorId={editorVendorId}
+        onVendorChange={setEditorVendorId}
         urlTemplate={urlTemplate}
         onUrlTemplateChange={setUrlTemplate}
         commentTemplate={commentTemplate}
