@@ -404,16 +404,6 @@ export const CommandEditor = ({
       <Stack gap={6}>
         <Text size="sm" fw={600}>適用範囲</Text>
         <Group gap="xs">
-          {!lockPlatform ? (
-            <Badge
-              style={badgeStyle}
-              variant={scopeMode === "common" ? "filled" : "light"}
-              color={scopeMode === "common" ? "blue" : "gray"}
-              onClick={() => setScopeMode("common")}
-            >
-              共通
-            </Badge>
-          ) : null}
           <Badge
             style={badgeStyle}
             variant={scopeMode === "platform" ? "filled" : "light"}
@@ -504,21 +494,41 @@ export const CommandEditor = ({
         <Text size="sm" fw={600}>機種名</Text>
         <Group gap="xs" wrap="wrap">
           {scopeMode === "platform"
-            ? filteredPlatforms.map((item) => (
-                <Badge
-                  key={item.id}
-                  style={badgeStyle}
-                  variant={platformId === String(item.id) ? "filled" : "light"}
-                  color={platformId === String(item.id) ? "blue" : "gray"}
-                  onClick={() => {
-                    if (lockPlatform) return;
-                    setPlatformId(String(item.id));
-                    if (item.vendor) setVendorId(String(item.vendor.id));
-                  }}
-                >
-                  {item.name}
-                </Badge>
-              ))
+            ? (
+              <>
+                {platformId ? (
+                  <Badge
+                    style={badgeStyle}
+                    variant="filled"
+                    color="blue"
+                    onClick={() => {
+                      if (lockPlatform) return;
+                      setPlatformId("");
+                    }}
+                  >
+                    全て
+                  </Badge>
+                ) : null}
+                {(platformId
+                  ? filteredPlatforms.filter((item) => String(item.id) === platformId)
+                  : filteredPlatforms
+                ).map((item) => (
+                  <Badge
+                    key={item.id}
+                    style={badgeStyle}
+                    variant={platformId === String(item.id) ? "filled" : "light"}
+                    color={platformId === String(item.id) ? "blue" : "gray"}
+                    onClick={() => {
+                      if (lockPlatform) return;
+                      setPlatformId(String(item.id));
+                      if (item.vendor) setVendorId(String(item.vendor.id));
+                    }}
+                  >
+                    {item.name}
+                  </Badge>
+                ))}
+              </>
+            )
             : null}
         </Group>
       </Stack>

@@ -90,11 +90,26 @@ export const PlatformLinkEditorModal = ({
   onDelete,
   onSave
 }: Props) => {
-  const sortedCategories = sortByBadgeOrder(categories).filter((item) => !isCommonPlaceholderName(item.name));
-  const sortedHostTypes = sortByBadgeOrder(hostTypes).filter((item) => !isCommonPlaceholderName(item.name));
+  const sortedCategoriesBase = sortByBadgeOrder(categories).filter((item) => !isCommonPlaceholderName(item.name));
+  const sortedHostTypesBase = sortByBadgeOrder(hostTypes).filter((item) => !isCommonPlaceholderName(item.name));
+  const sortedCategories =
+    categoryId && !sortedCategoriesBase.some((item) => String(item.id) === categoryId)
+      ? [...categories.filter((item) => String(item.id) === categoryId), ...sortedCategoriesBase]
+      : sortedCategoriesBase;
+  const sortedHostTypes =
+    hostTypeId && !sortedHostTypesBase.some((item) => String(item.id) === hostTypeId)
+      ? [...hostTypes.filter((item) => String(item.id) === hostTypeId), ...sortedHostTypesBase]
+      : sortedHostTypesBase;
   const sortedPlatforms = sortByName(platforms);
   const sortedVendors = sortByName(vendors);
   const sortedTagSuggestions = sortByName(tagSuggestions);
+  const selectedPlatformIds = multiPlatformSelect
+    ? platformIds
+    : (platformId ? [platformId] : []);
+  const shownPlatforms =
+    selectedPlatformIds.length > 0
+      ? sortedPlatforms.filter((item) => selectedPlatformIds.includes(String(item.id)))
+      : sortedPlatforms;
 
   return (
     <Modal opened={opened} onClose={onClose} title={modalTitle ?? "リンク編集"} size="xl">
@@ -197,7 +212,23 @@ export const PlatformLinkEditorModal = ({
                 </Group>
                 <Text size="sm" fw={600}>機種名</Text>
                 <Group gap="xs" wrap="wrap">
-                  {sortedPlatforms.map((item) => (
+                  {selectedPlatformIds.length > 0 ? (
+                    <Badge
+                      style={badgeStyle}
+                      variant="filled"
+                      color="blue"
+                      onClick={() => {
+                        if (multiPlatformSelect && onPlatformIdsChange) {
+                          onPlatformIdsChange([]);
+                          return;
+                        }
+                        onPlatformChange?.("");
+                      }}
+                    >
+                      全て
+                    </Badge>
+                  ) : null}
+                  {shownPlatforms.map((item) => (
                     <Badge
                       key={item.id}
                       style={badgeStyle}

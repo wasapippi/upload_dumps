@@ -184,14 +184,20 @@ export const CommandDetailModal = ({
     () => hostTypes.find((item) => isCommonPlaceholderName(item.name))?.id ?? null,
     [hostTypes]
   );
-  const visibleCategories = useMemo(
-    () => categories.filter((item) => !isCommonPlaceholderName(item.name)),
-    [categories]
-  );
-  const visibleHostTypes = useMemo(
-    () => filteredHostTypes.filter((item) => !isCommonPlaceholderName(item.name)),
-    [filteredHostTypes]
-  );
+  const visibleCategories = useMemo(() => {
+    const filtered = categories.filter((item) => !isCommonPlaceholderName(item.name));
+    if (!categoryId) return filtered;
+    if (filtered.some((item) => String(item.id) === categoryId)) return filtered;
+    const selected = categories.find((item) => String(item.id) === categoryId);
+    return selected ? [selected, ...filtered] : filtered;
+  }, [categories, categoryId]);
+  const visibleHostTypes = useMemo(() => {
+    const filtered = filteredHostTypes.filter((item) => !isCommonPlaceholderName(item.name));
+    if (!hostTypeId) return filtered;
+    if (filtered.some((item) => String(item.id) === hostTypeId)) return filtered;
+    const selected = filteredHostTypes.find((item) => String(item.id) === hostTypeId);
+    return selected ? [selected, ...filtered] : filtered;
+  }, [filteredHostTypes, hostTypeId]);
 
   useEffect(() => {
     if (!hostTypeId || hostTypes.length === 0) return;
@@ -373,14 +379,6 @@ export const CommandDetailModal = ({
 
           <Text size="sm" fw={600}>適用範囲</Text>
           <Group gap="xs">
-            <Badge
-              style={badgeStyle}
-              variant={scopeMode === "common" ? "filled" : "light"}
-              color={scopeMode === "common" ? "blue" : "gray"}
-              onClick={() => setScopeMode("common")}
-            >
-              共通
-            </Badge>
             <Badge
               style={badgeStyle}
               variant={scopeMode === "platform" ? "filled" : "light"}
