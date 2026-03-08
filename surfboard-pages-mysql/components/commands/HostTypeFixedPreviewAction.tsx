@@ -91,7 +91,7 @@ export const HostTypeFixedPreviewAction = ({ hostName, hostTypeId, platformName 
 
   return (
     <>
-      <Tooltip label="機種固定プレビュー">
+      <Tooltip label="機種別情報">
         <ActionIcon
           variant="subtle"
           color="green"
