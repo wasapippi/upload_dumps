@@ -114,9 +114,19 @@ export const FixedPlatformPreviewModal = ({
   const handleLinkScopeChange = (value: "platform" | "vendor" | "common") => {
     setLinkScope(value);
     if (value === "common") {
-      setEditorCategoryId("");
-      setEditorHostTypeId("");
-      setEditorPlatformId("");
+      if (commonHostTypeId) {
+        const commonHostType = hostTypes.find((item) => item.id === commonHostTypeId) ?? null;
+        if (commonHostType) {
+          setEditorCategoryId(String(commonHostType.categoryId));
+          setEditorHostTypeId(String(commonHostType.id));
+        } else {
+          setEditorCategoryId("");
+          setEditorHostTypeId("");
+        }
+      } else {
+        setEditorCategoryId("");
+        setEditorHostTypeId("");
+      }
       setEditorVendorId("");
       return;
     }
@@ -374,6 +384,10 @@ export const FixedPlatformPreviewModal = ({
   const commonHostTypeId = useMemo(
     () => hostTypes.find((item) => item.name === "共通")?.id ?? null,
     [hostTypes]
+  );
+  const commonCategoryId = useMemo(
+    () => categories.find((item) => item.name === "共通")?.id ?? null,
+    [categories]
   );
 
   const filteredEditorPlatforms = useMemo(() => {
@@ -860,6 +874,18 @@ export const FixedPlatformPreviewModal = ({
         categories={categories}
         categoryId={editorCategoryId}
         onCategoryChange={(value) => {
+          const selectedCategory = categories.find((item) => String(item.id) === value) ?? null;
+          if (selectedCategory?.name === "共通") {
+            const commonHostType =
+              hostTypes.find(
+                (hostType) => hostType.categoryId === selectedCategory.id && hostType.name === "共通"
+              ) ?? hostTypes.find((hostType) => hostType.name === "共通");
+            setEditorCategoryId(value);
+            if (commonHostType) {
+              setEditorHostTypeId(String(commonHostType.id));
+            }
+            return;
+          }
           setEditorCategoryId(value);
           setEditorHostTypeId("");
           setEditorPlatformId("");
@@ -867,7 +893,16 @@ export const FixedPlatformPreviewModal = ({
         hostTypes={filteredEditorHostTypes}
         hostTypeId={editorHostTypeId}
         onHostTypeChange={(value) => {
+          const selected = filteredEditorHostTypes.find((item) => String(item.id) === value) ?? null;
           setEditorHostTypeId(value);
+          if (selected?.name === "共通") {
+            if (commonCategoryId) {
+              setEditorCategoryId(String(commonCategoryId));
+            } else {
+              setEditorCategoryId(String(selected.categoryId));
+            }
+            return;
+          }
           setEditorPlatformId("");
         }}
         platforms={filteredEditorPlatforms}

@@ -183,19 +183,44 @@ export default function LinksPage() {
   const toggleTag = (tagId: number) => {
     setSelectedTagIds((prev) => (prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]));
   };
+  const commonCategory = useMemo(
+    () => categories.find((item) => isCommonPlaceholderName(item.name)) ?? null,
+    [categories]
+  );
   const handleEditorCategoryChange = (value: string) => {
+    const selectedCategory = categories.find((item) => String(item.id) === value) ?? null;
+    if (selectedCategory && isCommonPlaceholderName(selectedCategory.name)) {
+      const commonHostType =
+        hostTypes.find(
+          (hostType) =>
+            hostType.categoryId === selectedCategory.id && isCommonPlaceholderName(hostType.name)
+        ) ??
+        hostTypes.find((hostType) => isCommonPlaceholderName(hostType.name));
+      setEditorCategoryId(value);
+      if (commonHostType) {
+        setEditorHostTypeId(String(commonHostType.id));
+      }
+      return;
+    }
     setEditorCategoryId(value);
     setEditorHostTypeId("");
     setEditorPlatformId("");
     setEditorPlatformIds([]);
   };
+  const commonHostType = useMemo(
+    () => hostTypes.find((item) => item.name === "共通") ?? null,
+    [hostTypes]
+  );
   const handleLinkScopeChange = (value: "platform" | "vendor" | "common") => {
     setLinkScope(value);
     if (value === "common") {
-      setEditorCategoryId("");
-      setEditorHostTypeId("");
-      setEditorPlatformId("");
-      setEditorPlatformIds([]);
+      if (commonHostType) {
+        setEditorCategoryId(String(commonHostType.categoryId));
+        setEditorHostTypeId(String(commonHostType.id));
+      } else {
+        setEditorCategoryId("");
+        setEditorHostTypeId("");
+      }
       setEditorVendorId("");
       return;
     }
@@ -687,7 +712,16 @@ export default function LinksPage() {
         hostTypes={editorHostTypes}
         hostTypeId={editorHostTypeId}
         onHostTypeChange={(value) => {
+          const selected = editorHostTypes.find((item) => String(item.id) === value) ?? null;
           setEditorHostTypeId(value);
+          if (selected && isCommonPlaceholderName(selected.name)) {
+            if (commonCategory) {
+              setEditorCategoryId(String(commonCategory.id));
+            } else {
+              setEditorCategoryId(String(selected.categoryId));
+            }
+            return;
+          }
           setEditorPlatformId("");
           setEditorPlatformIds([]);
         }}

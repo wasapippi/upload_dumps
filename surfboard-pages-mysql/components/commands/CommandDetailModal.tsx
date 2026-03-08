@@ -191,20 +191,12 @@ export const CommandDetailModal = ({
     () => hostTypes.find((item) => isCommonPlaceholderName(item.name))?.id ?? null,
     [hostTypes]
   );
-  const visibleCategories = useMemo(() => {
-    const filtered = categories.filter((item) => !isCommonPlaceholderName(item.name));
-    if (!categoryId) return filtered;
-    if (filtered.some((item) => String(item.id) === categoryId)) return filtered;
-    const selected = categories.find((item) => String(item.id) === categoryId);
-    return selected ? [selected, ...filtered] : filtered;
-  }, [categories, categoryId]);
-  const visibleHostTypes = useMemo(() => {
-    const filtered = filteredHostTypes.filter((item) => !isCommonPlaceholderName(item.name));
-    if (!hostTypeId) return filtered;
-    if (filtered.some((item) => String(item.id) === hostTypeId)) return filtered;
-    const selected = filteredHostTypes.find((item) => String(item.id) === hostTypeId);
-    return selected ? [selected, ...filtered] : filtered;
-  }, [filteredHostTypes, hostTypeId]);
+  const visibleCategories = useMemo(() => categories, [categories]);
+  const visibleHostTypes = useMemo(() => filteredHostTypes, [filteredHostTypes]);
+  const commonCategoryId = useMemo(
+    () => categories.find((item) => isCommonPlaceholderName(item.name))?.id ?? null,
+    [categories]
+  );
 
   useEffect(() => {
     if (!hostTypeId || hostTypes.length === 0) return;
@@ -448,7 +440,20 @@ export const CommandDetailModal = ({
                     style={badgeStyle}
                     variant={categoryId === String(item.id) ? "filled" : "light"}
                     color={categoryId === String(item.id) ? "blue" : "gray"}
-                    onClick={() => setCategoryId(String(item.id))}
+                    onClick={() => {
+                      setCategoryId(String(item.id));
+                      if (isCommonPlaceholderName(item.name)) {
+                        const commonHostType =
+                          hostTypes.find(
+                            (hostType) =>
+                              hostType.categoryId === item.id && isCommonPlaceholderName(hostType.name)
+                          ) ??
+                          hostTypes.find((hostType) => isCommonPlaceholderName(hostType.name));
+                        if (commonHostType) {
+                          setHostTypeId(String(commonHostType.id));
+                        }
+                      }
+                    }}
                   >
                     {item.name}
                   </Badge>
@@ -479,6 +484,9 @@ export const CommandDetailModal = ({
                     onClick={() => {
                       setHostTypeId(String(item.id));
                       setCategoryId(String(item.categoryId));
+                      if (isCommonPlaceholderName(item.name) && commonCategoryId) {
+                        setCategoryId(String(commonCategoryId));
+                      }
                     }}
                   >
                     {item.name}

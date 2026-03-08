@@ -284,19 +284,42 @@ export default function PlatformDetailPage() {
   useEffect(() => {
     if (linkPage > linkTotalPages) setLinkPage(linkTotalPages);
   }, [linkPage, linkTotalPages]);
+  const commonCategory = useMemo(
+    () => categories.find((item) => item.name === "共通") ?? null,
+    [categories]
+  );
   const handleEditorCategoryChange = (value: string) => {
+    const selectedCategory = categories.find((item) => String(item.id) === value) ?? null;
+    if (selectedCategory?.name === "共通") {
+      const commonHostType =
+        hostTypes.find(
+          (hostType) => hostType.categoryId === selectedCategory.id && hostType.name === "共通"
+        ) ?? hostTypes.find((hostType) => hostType.name === "共通");
+      setEditorCategoryId(value);
+      if (commonHostType) {
+        setEditorHostTypeId(String(commonHostType.id));
+      }
+      return;
+    }
     setEditorCategoryId(value);
     setEditorHostTypeId("");
     setEditorPlatformId("");
     setEditorPlatformIds([]);
   };
+  const commonHostType = useMemo(
+    () => hostTypes.find((item) => item.name === "共通") ?? null,
+    [hostTypes]
+  );
   const handleLinkScopeChange = (value: "platform" | "vendor" | "common") => {
     setLinkScope(value);
     if (value === "common") {
-      setEditorCategoryId("");
-      setEditorHostTypeId("");
-      setEditorPlatformId("");
-      setEditorPlatformIds([]);
+      if (commonHostType) {
+        setEditorCategoryId(String(commonHostType.categoryId));
+        setEditorHostTypeId(String(commonHostType.id));
+      } else {
+        setEditorCategoryId("");
+        setEditorHostTypeId("");
+      }
       setEditorVendorId("");
       return;
     }
@@ -587,7 +610,16 @@ export default function PlatformDetailPage() {
         hostTypes={editorHostTypes}
         hostTypeId={editorHostTypeId}
         onHostTypeChange={(value) => {
+          const selected = editorHostTypes.find((item) => String(item.id) === value) ?? null;
           setEditorHostTypeId(value);
+          if (selected?.name === "共通") {
+            if (commonCategory) {
+              setEditorCategoryId(String(commonCategory.id));
+            } else {
+              setEditorCategoryId(String(selected.categoryId));
+            }
+            return;
+          }
           setEditorPlatformId("");
           setEditorPlatformIds([]);
         }}

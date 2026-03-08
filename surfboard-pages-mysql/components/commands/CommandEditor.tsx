@@ -110,7 +110,7 @@ export const CommandEditor = ({
   const initialVendorId = initialContext?.vendorId ?? "";
   const initialScopeMode = initialContext?.scopeMode;
   const initialTagsKey = (initialContext?.tags ?? []).join("\u0001");
-  const initialTags = useMemo(() => initialContext?.tags ?? [], [initialContext?.tags, initialTagsKey]);
+  const initialTags = useMemo(() => initialContext?.tags ?? [], [initialTagsKey]);
 
   const loadMasters = async () => {
     const [hostTypeRes, platformRes, vendorRes] = await Promise.all([
@@ -168,7 +168,7 @@ export const CommandEditor = ({
     );
     setDeviceBindingMode("INCLUDE_IN_DEVICE");
     setTagsLayer1(initialTags);
-  }, [initialCategoryId, initialCommand, initialHostTypeId, initialPlatformId, initialScopeMode, initialTags, initialVendorId]);
+  }, [initialCategoryId, initialCommand, initialHostTypeId, initialPlatformId, initialScopeMode, initialTagsKey, initialVendorId]);
 
   useEffect(() => {
     let active = true;
@@ -268,6 +268,10 @@ export const CommandEditor = ({
         (item) => !isCommonPlaceholderName(item.name) || String(item.id) === hostTypeId
       ),
     [filteredHostTypes, hostTypeId]
+  );
+  const commonCategoryId = useMemo(
+    () => categories.find((item) => isCommonPlaceholderName(item.name))?.id ?? null,
+    [categories]
   );
 
   useEffect(() => {
@@ -488,6 +492,17 @@ export const CommandEditor = ({
               onClick={() => {
                 if (lockHostType) return;
                 setCategoryId(String(item.id));
+                if (isCommonPlaceholderName(item.name)) {
+                  const commonHostType =
+                    hostTypes.find(
+                      (hostType) =>
+                        hostType.categoryId === item.id && isCommonPlaceholderName(hostType.name)
+                    ) ??
+                    hostTypes.find((hostType) => isCommonPlaceholderName(hostType.name));
+                  if (commonHostType) {
+                    setHostTypeId(String(commonHostType.id));
+                  }
+                }
               }}
             >
               {item.name}
@@ -522,6 +537,9 @@ export const CommandEditor = ({
                 if (lockHostType) return;
                 setHostTypeId(String(item.id));
                 setCategoryId(String(item.categoryId));
+                if (isCommonPlaceholderName(item.name) && commonCategoryId) {
+                  setCategoryId(String(commonCategoryId));
+                }
               }}
             >
               {item.name}

@@ -93,8 +93,8 @@ export const PlatformLinkEditorModal = ({
 }: Props) => {
   const hostTypeListRef = useRef<HTMLDivElement | null>(null);
   const platformListRef = useRef<HTMLDivElement | null>(null);
-  const sortedCategoriesBase = sortByBadgeOrder(categories).filter((item) => !isCommonPlaceholderName(item.name));
-  const sortedHostTypesBase = sortByBadgeOrder(hostTypes).filter((item) => !isCommonPlaceholderName(item.name));
+  const sortedCategoriesBase = sortByBadgeOrder(categories);
+  const sortedHostTypesBase = sortByBadgeOrder(hostTypes);
   const sortedCategories =
     categoryId && !sortedCategoriesBase.some((item) => String(item.id) === categoryId)
       ? [...categories.filter((item) => String(item.id) === categoryId), ...sortedCategoriesBase]
