@@ -13,9 +13,7 @@ import { CommandList } from "@/components/commands/CommandList";
 import { CommandEditor } from "@/components/commands/CommandEditor";
 import { CommandFilterPanel } from "@/components/commands/CommandFilterPanel";
 import { CommandPaginationBar } from "@/components/commands/CommandPaginationBar";
-import { HostTypeFixedPreviewAction } from "@/components/commands/HostTypeFixedPreviewAction";
 import { Command, HostType, Platform, Tag } from "@/components/commands/types";
-import { useRouter } from "next/router";
 import DefaultLayout from "@/components/layouts/default";
 const PAGE_SIZE = 20;
 type Vendor = { id: number; name: string };
@@ -29,8 +27,6 @@ type CommandPageResponse = {
 };
 
 export default function CommandsPage() {
-  const router = useRouter();
-  const hostName = typeof router.query.hostName === "string" ? router.query.hostName : "";
   const [commands, setCommands] = useState<Command[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [hostTypes, setHostTypes] = useState<HostType[]>([]);
@@ -219,7 +215,6 @@ export default function CommandsPage() {
           >
             {reorderMode ? "順番変更終了" : "順番変更"}
           </Button>
-          <HostTypeFixedPreviewAction hostName={hostName} hostTypeId={hostTypeId} />
           <Button onClick={openCreateModal}>新規追加</Button>
         </Group>
       </Group>

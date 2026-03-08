@@ -313,10 +313,10 @@ export const CommandEditor = ({
     setError(null);
 
     const resolvedHostTypeId =
-      scopeMode === "common"
-        ? commonHostTypeId
-        : (hostTypeId ? Number(hostTypeId) : (scopeMode === "vendor" ? commonHostTypeId : null));
-    if (!title.trim() || !commandText.trim() || (scopeMode !== "vendor" && !resolvedHostTypeId)) {
+      scopeMode === "platform"
+        ? (hostTypeId ? Number(hostTypeId) : null)
+        : commonHostTypeId;
+    if (!title.trim() || !commandText.trim() || !resolvedHostTypeId) {
       setError("必須項目を入力してください。");
       setSaving(false);
       return;

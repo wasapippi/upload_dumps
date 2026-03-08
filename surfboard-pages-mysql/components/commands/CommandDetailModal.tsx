@@ -285,19 +285,19 @@ export const CommandDetailModal = ({
     if (!command) return;
     setSaveError(null);
     const resolvedHostTypeId =
-      scopeMode === "common"
-        ? commonHostTypeId
-        : (hostTypeId ? Number(hostTypeId) : (scopeMode === "vendor" ? commonHostTypeId : null));
-    if (!resolvedHostTypeId && scopeMode !== "vendor") {
-      setSaveError("ホスト種別を選択してください。");
+      scopeMode === "platform"
+        ? (hostTypeId ? Number(hostTypeId) : null)
+        : commonHostTypeId;
+    if (!resolvedHostTypeId) {
+      setSaveError(
+        scopeMode === "platform"
+          ? "ホスト種別を選択してください。"
+          : "共通ホスト種別が見つかりません。taxonomyで「共通」を作成してください。"
+      );
       return;
     }
     if (scopeMode === "vendor" && !vendorId) {
       setSaveError("ベンダを選択してください。");
-      return;
-    }
-    if (!resolvedHostTypeId) {
-      setSaveError("共通ホスト種別が見つかりません。taxonomyで「共通」を作成してください。");
       return;
     }
 

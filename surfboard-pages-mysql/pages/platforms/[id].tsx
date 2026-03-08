@@ -280,6 +280,8 @@ export default function PlatformDetailPage() {
       return;
     }
     if (value === "vendor") {
+      setEditorCategoryId("");
+      setEditorHostTypeId("");
       setEditorPlatformId("");
       setEditorPlatformIds([]);
       return;
@@ -337,9 +339,9 @@ export default function PlatformDetailPage() {
     }
     const commonHostTypeId = hostTypes.find((item) => item.name === "共通")?.id ?? null;
     const selectedHostTypeId =
-      linkScope === "common"
-        ? Number(commonHostTypeId || 0)
-        : Number(editorHostTypeId || hostTypeId || commonHostTypeId || 0);
+      linkScope === "platform"
+        ? Number(editorHostTypeId || hostTypeId || 0)
+        : Number(commonHostTypeId || 0);
     const selectedVendorId = Number(editorVendorId || selectedPlatform?.vendor?.id || 0) || null;
     if (!selectedHostTypeId) {
       setError("共通ホスト種別が見つかりません。taxonomyで「共通」を作成してください。");

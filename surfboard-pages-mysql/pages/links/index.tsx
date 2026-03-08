@@ -196,6 +196,8 @@ export default function LinksPage() {
       return;
     }
     if (value === "vendor") {
+      setEditorCategoryId("");
+      setEditorHostTypeId("");
       setEditorPlatformId("");
       setEditorPlatformIds([]);
       return;
@@ -336,9 +338,9 @@ export default function LinksPage() {
       return;
     }
     const selectedHostTypeId =
-      linkScope === "common"
-        ? String(commonHostTypeId ?? "")
-        : (editorHostTypeId || editingLink?.hostTypeId?.toString() || String(commonHostTypeId));
+      linkScope === "platform"
+        ? (editorHostTypeId || editingLink?.hostTypeId?.toString() || "")
+        : String(commonHostTypeId ?? "");
     const selectedPlatformIds =
       linkScope === "platform"
         ? (editingLink

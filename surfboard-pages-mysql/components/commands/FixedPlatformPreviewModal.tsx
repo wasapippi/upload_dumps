@@ -120,6 +120,8 @@ export const FixedPlatformPreviewModal = ({
       return;
     }
     if (value === "vendor") {
+      setEditorCategoryId("");
+      setEditorHostTypeId("");
       setEditorPlatformId("");
       return;
     }
@@ -498,12 +500,12 @@ export const FixedPlatformPreviewModal = ({
     const numericPlatformId = Number(editorPlatformId || platformId || 0);
     const commonHostTypeId = hostTypes.find((item) => item.name === "共通")?.id ?? null;
     const numericHostTypeId =
-      linkScope === "common"
-        ? Number(commonHostTypeId || 0)
-        : Number(editorHostTypeId || hostTypeId || commonHostTypeId || 0);
+      linkScope === "platform"
+        ? Number(editorHostTypeId || hostTypeId || 0)
+        : Number(commonHostTypeId || 0);
     const numericVendorId =
       Number(editorVendorId || editingLink?.vendorId || selectedPlatformVendorId || 0) || null;
-    const resolvedHostTypeId = Number(editingLink?.hostTypeId ?? numericHostTypeId);
+    const resolvedHostTypeId = Number(numericHostTypeId);
 
     if (linkScope === "platform" && !Number.isFinite(numericPlatformId)) {
       setSaveError("機種名を選択してください。");
@@ -570,7 +572,13 @@ export const FixedPlatformPreviewModal = ({
   const detailHref = platformId ? `/platforms/${platformId}` : "";
 
   return (
-    <Modal opened={opened} onClose={onClose} title={hostName?.trim() || "機種固定ページプレビュー"} size="85%">
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={hostName?.trim() || "機種固定ページプレビュー"}
+      size="90vw"
+      styles={{ content: { maxWidth: 1300 } }}
+    >
       <Stack gap="sm">
         <Group justify="space-between" align="center" wrap="wrap">
           <Group gap={6} wrap="wrap">

@@ -59,7 +59,7 @@ const ensureCommandTags = async (names: string[]) => {
   return rows;
 };
 
-const listCommands = async (req: NextApiRequest) => {
+const buildCommandWhere = async (req: NextApiRequest) => {
   const q = String(req.query.q || "").trim();
   const categoryId = Number(req.query.categoryId || 0) || null;
   const hostTypeId = Number(req.query.hostTypeId || 0) || null;
@@ -143,23 +143,10 @@ const listCommands = async (req: NextApiRequest) => {
     }
   }
 
-  const rows = await query<CommandRow>(
-    `SELECT
-      c.id, c.title, c.description, c.commandText, c.danger, c.orderIndex,
-      c.visibility, c.ownerUserId, c.deviceBindingMode, c.createdBy, c.updatedBy, c.updatedAt,
-      c.hostTypeId, ht.name AS hostTypeName, ht.categoryId, cat.name AS categoryName,
-      c.platformId, p.name AS platformName,
-      c.vendorId, v.name AS vendorName
-    FROM Command c
-    INNER JOIN HostType ht ON ht.id = c.hostTypeId
-    INNER JOIN Category cat ON cat.id = ht.categoryId
-    LEFT JOIN Platform p ON p.id = c.platformId
-    LEFT JOIN Vendor v ON v.id = c.vendorId
-    WHERE ${where.join(" AND ")}
-    ORDER BY ht.groupOrderIndex ASC, c.platformId ASC, c.orderIndex ASC, c.id ASC`,
-    params
-  );
+  return { where, params };
+};
 
+const mapCommandsWithTags = async (rows: CommandRow[]) => {
   if (rows.length === 0) return [] as Command[];
 
   const ids = rows.map((x) => x.id);
@@ -210,11 +197,80 @@ const listCommands = async (req: NextApiRequest) => {
   })) as unknown as Command[];
 };
 
+const listCommands = async (req: NextApiRequest) => {
+  const { where, params } = await buildCommandWhere(req);
+  const rows = await query<CommandRow>(
+    `SELECT
+      c.id, c.title, c.description, c.commandText, c.danger, c.orderIndex,
+      c.visibility, c.ownerUserId, c.deviceBindingMode, c.createdBy, c.updatedBy, c.updatedAt,
+      c.hostTypeId, ht.name AS hostTypeName, ht.categoryId, cat.name AS categoryName,
+      c.platformId, p.name AS platformName,
+      c.vendorId, v.name AS vendorName
+    FROM Command c
+    INNER JOIN HostType ht ON ht.id = c.hostTypeId
+    INNER JOIN Category cat ON cat.id = ht.categoryId
+    LEFT JOIN Platform p ON p.id = c.platformId
+    LEFT JOIN Vendor v ON v.id = c.vendorId
+    WHERE ${where.join(" AND ")}
+    ORDER BY ht.groupOrderIndex ASC, c.platformId ASC, c.orderIndex ASC, c.id ASC`,
+    params
+  );
+  return mapCommandsWithTags(rows);
+};
+
+const listCommandsPaged = async (req: NextApiRequest, page: number, pageSize: number) => {
+  const { where, params } = await buildCommandWhere(req);
+  const countRows = await query<{ total: number }>(
+    `SELECT COUNT(*) AS total
+     FROM Command c
+     INNER JOIN HostType ht ON ht.id = c.hostTypeId
+     INNER JOIN Category cat ON cat.id = ht.categoryId
+     LEFT JOIN Platform p ON p.id = c.platformId
+     LEFT JOIN Vendor v ON v.id = c.vendorId
+     WHERE ${where.join(" AND ")}`,
+    params
+  );
+  const total = Number(countRows[0]?.total ?? 0);
+  const safePage = Math.max(1, page);
+  const safePageSize = Math.max(1, Math.min(pageSize, 200));
+  const offset = (safePage - 1) * safePageSize;
+
+  const rows = await query<CommandRow>(
+    `SELECT
+      c.id, c.title, c.description, c.commandText, c.danger, c.orderIndex,
+      c.visibility, c.ownerUserId, c.deviceBindingMode, c.createdBy, c.updatedBy, c.updatedAt,
+      c.hostTypeId, ht.name AS hostTypeName, ht.categoryId, cat.name AS categoryName,
+      c.platformId, p.name AS platformName,
+      c.vendorId, v.name AS vendorName
+    FROM Command c
+    INNER JOIN HostType ht ON ht.id = c.hostTypeId
+    INNER JOIN Category cat ON cat.id = ht.categoryId
+    LEFT JOIN Platform p ON p.id = c.platformId
+    LEFT JOIN Vendor v ON v.id = c.vendorId
+    WHERE ${where.join(" AND ")}
+    ORDER BY ht.groupOrderIndex ASC, c.platformId ASC, c.orderIndex ASC, c.id ASC
+    LIMIT ? OFFSET ?`,
+    [...params, safePageSize, offset]
+  );
+
+  return {
+    items: await mapCommandsWithTags(rows),
+    total,
+    page: safePage,
+    pageSize: safePageSize
+  };
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const actorName = resolveActorName(req);
 
   if (req.method === "GET") {
-    const data = await listCommands(req);
+    const page = Number(req.query.page || 0);
+    const pageSize = Number(req.query.pageSize || 0);
+    const data =
+      page > 0 && pageSize > 0
+        ? await listCommandsPaged(req, page, pageSize)
+        : await listCommands(req);
     return res.status(200).json(data);
   }
 
