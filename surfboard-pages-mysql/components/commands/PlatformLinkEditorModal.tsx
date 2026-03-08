@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { Badge, Button, Group, Modal, Stack, TagsInput, Text, TextInput, Textarea } from "@mantine/core";
 import { HostType, Platform, Tag } from "./types";
 import { sortByBadgeOrder, sortByName } from "@/lib/badgeOrder";
@@ -90,6 +91,8 @@ export const PlatformLinkEditorModal = ({
   onDelete,
   onSave
 }: Props) => {
+  const hostTypeListRef = useRef<HTMLDivElement | null>(null);
+  const platformListRef = useRef<HTMLDivElement | null>(null);
   const sortedCategoriesBase = sortByBadgeOrder(categories).filter((item) => !isCommonPlaceholderName(item.name));
   const sortedHostTypesBase = sortByBadgeOrder(hostTypes).filter((item) => !isCommonPlaceholderName(item.name));
   const sortedCategories =
@@ -110,6 +113,18 @@ export const PlatformLinkEditorModal = ({
     selectedPlatformIds.length > 0
       ? sortedPlatforms.filter((item) => selectedPlatformIds.includes(String(item.id)))
       : sortedPlatforms;
+
+  useEffect(() => {
+    if (!hostTypeId) return;
+    const selected = hostTypeListRef.current?.querySelector('[data-selected="true"]') as HTMLElement | null;
+    selected?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [hostTypeId, sortedHostTypes]);
+
+  useEffect(() => {
+    if (selectedPlatformIds.length === 0) return;
+    const selected = platformListRef.current?.querySelector('[data-selected="true"]') as HTMLElement | null;
+    selected?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [selectedPlatformIds, shownPlatforms]);
 
   return (
     <Modal opened={opened} onClose={onClose} title={modalTitle ?? "リンク編集"} size="xl">
@@ -197,10 +212,23 @@ export const PlatformLinkEditorModal = ({
                   ))}
                 </Group>
                 <Text size="sm" fw={600}>ホスト種別</Text>
-                <Group gap="xs" wrap="wrap">
+                <Group
+                  ref={hostTypeListRef}
+                  gap="xs"
+                  wrap="wrap"
+                  style={{
+                    maxHeight: 112,
+                    overflowY: "auto",
+                    alignContent: "flex-start",
+                    border: "1px solid var(--mantine-color-default-border)",
+                    borderRadius: 8,
+                    padding: 8
+                  }}
+                >
                   {sortedHostTypes.map((item) => (
                     <Badge
                       key={item.id}
+                      data-selected={hostTypeId === String(item.id) ? "true" : "false"}
                       style={badgeStyle}
                       variant={hostTypeId === String(item.id) ? "filled" : "light"}
                       color={hostTypeId === String(item.id) ? "blue" : "gray"}
@@ -212,6 +240,7 @@ export const PlatformLinkEditorModal = ({
                 </Group>
                 <Text size="sm" fw={600}>機種名</Text>
                 <Group
+                  ref={platformListRef}
                   gap="xs"
                   wrap="wrap"
                   style={{
@@ -226,6 +255,7 @@ export const PlatformLinkEditorModal = ({
                   {shownPlatforms.map((item) => (
                     <Badge
                       key={item.id}
+                      data-selected={selectedPlatformIds.includes(String(item.id)) ? "true" : "false"}
                       style={badgeStyle}
                       variant={
                         multiPlatformSelect

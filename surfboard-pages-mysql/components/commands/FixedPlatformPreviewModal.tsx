@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Badge, Button, Group, Modal, Paper, SegmentedControl, Stack, Tabs, Text, TextInput, Tooltip } from "@mantine/core";
 import { Command, HostType, Platform, PlatformLink, Tag } from "./types";
@@ -84,6 +84,7 @@ export const FixedPlatformPreviewModal = ({
   const [editorHostTypeId, setEditorHostTypeId] = useState<string>(hostTypeId);
   const [editorPlatformId, setEditorPlatformId] = useState<string>(platformId);
   const [editorVendorId, setEditorVendorId] = useState<string>(selectedPlatformVendorId ?? "");
+  const prevOpenedRef = useRef(false);
 
   const dedupePlatformLinks = (items: PlatformLink[]) => {
     const byKey = new Map<string, PlatformLink>();
@@ -183,11 +184,13 @@ export const FixedPlatformPreviewModal = ({
   }, [fetchCommands, opened]);
 
   useEffect(() => {
-    if (!opened) return;
-    setCommandQ(initialQ ?? "");
-    setCommandTagMode(initialTagMode ?? "and");
-    setSelectedCommandTagIds(initialTagIds ?? []);
-    setCommandPage(1);
+    if (opened && !prevOpenedRef.current) {
+      setCommandQ(initialQ ?? "");
+      setCommandTagMode(initialTagMode ?? "and");
+      setSelectedCommandTagIds(initialTagIds ?? []);
+      setCommandPage(1);
+    }
+    prevOpenedRef.current = opened;
   }, [initialQ, initialTagIds, initialTagMode, opened]);
 
   const availableCommandTags = useMemo(() => {

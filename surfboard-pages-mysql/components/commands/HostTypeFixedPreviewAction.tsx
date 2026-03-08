@@ -82,10 +82,10 @@ export const HostTypeFixedPreviewAction = ({ hostName, hostTypeId, platformName 
     return categories.find((item) => item.id === selectedHostType.categoryId)?.name ?? "未指定";
   }, [categories, selectedHostType]);
 
-  if ((normalizedPlatformName || resolvedHostTypeId) && availablePlatforms.length === 0) {
+  if (!opened && (normalizedPlatformName || resolvedHostTypeId) && availablePlatforms.length === 0) {
     return null;
   }
-  if (!resolvedHostTypeId) {
+  if (!opened && !resolvedHostTypeId) {
     return null;
   }
 

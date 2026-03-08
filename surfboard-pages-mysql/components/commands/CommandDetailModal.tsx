@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import {
   Badge,
@@ -79,6 +79,8 @@ export const CommandDetailModal = ({
   const [values, setValues] = useState<Record<string, string>>({});
   const [copyError, setCopyError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const hostTypeListRef = useRef<HTMLDivElement | null>(null);
+  const platformListRef = useRef<HTMLDivElement | null>(null);
   const [hostTypes, setHostTypes] = useState<HostType[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -239,6 +241,18 @@ export const CommandDetailModal = ({
     setPlatformId("");
     setVendorId("");
   }, [availableVendors, filteredPlatforms, platformId, platforms, scopeMode, vendorId]);
+
+  useEffect(() => {
+    if (!hostTypeId) return;
+    const selected = hostTypeListRef.current?.querySelector('[data-selected="true"]') as HTMLElement | null;
+    selected?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [hostTypeId, visibleHostTypes]);
+
+  useEffect(() => {
+    if (scopeMode !== "platform" || !platformId) return;
+    const selected = platformListRef.current?.querySelector('[data-selected="true"]') as HTMLElement | null;
+    selected?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [filteredPlatforms, platformId, scopeMode]);
 
   useEffect(() => {
     let active = true;
@@ -442,10 +456,23 @@ export const CommandDetailModal = ({
               </Group>
 
               <Text size="sm" fw={600}>ホスト種別</Text>
-              <Group gap="xs" wrap="wrap">
+              <Group
+                ref={hostTypeListRef}
+                gap="xs"
+                wrap="wrap"
+                style={{
+                  maxHeight: 112,
+                  overflowY: "auto",
+                  alignContent: "flex-start",
+                  border: "1px solid var(--mantine-color-default-border)",
+                  borderRadius: 8,
+                  padding: 8
+                }}
+              >
                 {visibleHostTypes.map((item) => (
                   <Badge
                     key={item.id}
+                    data-selected={hostTypeId === String(item.id) ? "true" : "false"}
                     style={badgeStyle}
                     variant={hostTypeId === String(item.id) ? "filled" : "light"}
                     color={hostTypeId === String(item.id) ? "blue" : "gray"}
@@ -461,6 +488,7 @@ export const CommandDetailModal = ({
 
               <Text size="sm" fw={600}>機種名</Text>
               <Group
+                ref={platformListRef}
                 gap="xs"
                 wrap="wrap"
                 style={{
@@ -476,6 +504,7 @@ export const CommandDetailModal = ({
                   ? filteredPlatforms.map((item) => (
                       <Badge
                         key={item.id}
+                        data-selected={platformId === String(item.id) ? "true" : "false"}
                         style={badgeStyle}
                         variant={platformId === String(item.id) ? "filled" : "light"}
                         color={platformId === String(item.id) ? "blue" : "gray"}
