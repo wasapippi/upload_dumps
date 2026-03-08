@@ -211,23 +211,18 @@ export const PlatformLinkEditorModal = ({
                   ))}
                 </Group>
                 <Text size="sm" fw={600}>機種名</Text>
-                <Group gap="xs" wrap="wrap">
-                  {selectedPlatformIds.length > 0 ? (
-                    <Badge
-                      style={badgeStyle}
-                      variant="filled"
-                      color="blue"
-                      onClick={() => {
-                        if (multiPlatformSelect && onPlatformIdsChange) {
-                          onPlatformIdsChange([]);
-                          return;
-                        }
-                        onPlatformChange?.("");
-                      }}
-                    >
-                      全て
-                    </Badge>
-                  ) : null}
+                <Group
+                  gap="xs"
+                  wrap="wrap"
+                  style={{
+                    maxHeight: 112,
+                    overflowY: "auto",
+                    alignContent: "flex-start",
+                    border: "1px solid var(--mantine-color-default-border)",
+                    borderRadius: 8,
+                    padding: 8
+                  }}
+                >
                   {shownPlatforms.map((item) => (
                     <Badge
                       key={item.id}

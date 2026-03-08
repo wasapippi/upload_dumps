@@ -162,7 +162,7 @@ export const CommandEditor = ({
         ? initialScopeMode
         : initialPlatformId
           ? "platform"
-          : "common"
+          : "platform"
     );
     setDeviceBindingMode("INCLUDE_IN_DEVICE");
     setTagsLayer1(initialTags);
@@ -209,6 +209,11 @@ export const CommandEditor = ({
 
     if (hostTypeId) {
       const selectedHostTypeId = Number(hostTypeId);
+      const selectedHostType = hostTypes.find((hostType) => hostType.id === selectedHostTypeId);
+      // 共通ホスト種別は機種を絞り込まない（既存の機種指定を保持する）
+      if (selectedHostType && isCommonPlaceholderName(selectedHostType.name)) {
+        return sortByName(platforms);
+      }
       return sortByName(platforms.filter((platform) =>
         (platform.hostTypeLinks ?? []).some((link) => link.hostTypeId === selectedHostTypeId)
       ));
@@ -249,12 +254,18 @@ export const CommandEditor = ({
     [hostTypes]
   );
   const visibleCategories = useMemo(
-    () => categories.filter((item) => !isCommonPlaceholderName(item.name)),
-    [categories]
+    () =>
+      categories.filter(
+        (item) => !isCommonPlaceholderName(item.name) || String(item.id) === categoryId
+      ),
+    [categories, categoryId]
   );
   const visibleHostTypes = useMemo(
-    () => filteredHostTypes.filter((item) => !isCommonPlaceholderName(item.name)),
-    [filteredHostTypes]
+    () =>
+      filteredHostTypes.filter(
+        (item) => !isCommonPlaceholderName(item.name) || String(item.id) === hostTypeId
+      ),
+    [filteredHostTypes, hostTypeId]
   );
 
   useEffect(() => {
@@ -312,7 +323,9 @@ export const CommandEditor = ({
 
     const resolvedHostTypeId =
       scopeMode === "platform"
-        ? (hostTypeId ? Number(hostTypeId) : commonHostTypeId)
+        ? (hostTypeId
+          ? Number(hostTypeId)
+          : (initialCommand?.hostTypeId ?? commonHostTypeId))
         : commonHostTypeId;
     if (!title.trim() || !commandText.trim()) {
       setError("必須項目を入力してください。");
@@ -492,43 +505,34 @@ export const CommandEditor = ({
 
       <Stack gap={6}>
         <Text size="sm" fw={600}>機種名</Text>
-        <Group gap="xs" wrap="wrap">
+        <Group
+          gap="xs"
+          wrap="wrap"
+          style={{
+            maxHeight: 112,
+            overflowY: "auto",
+            alignContent: "flex-start",
+            border: "1px solid var(--mantine-color-default-border)",
+            borderRadius: 8,
+            padding: 8
+          }}
+        >
           {scopeMode === "platform"
-            ? (
-              <>
-                {platformId ? (
-                  <Badge
-                    style={badgeStyle}
-                    variant="filled"
-                    color="blue"
-                    onClick={() => {
-                      if (lockPlatform) return;
-                      setPlatformId("");
-                    }}
-                  >
-                    全て
-                  </Badge>
-                ) : null}
-                {(platformId
-                  ? filteredPlatforms.filter((item) => String(item.id) === platformId)
-                  : filteredPlatforms
-                ).map((item) => (
-                  <Badge
-                    key={item.id}
-                    style={badgeStyle}
-                    variant={platformId === String(item.id) ? "filled" : "light"}
-                    color={platformId === String(item.id) ? "blue" : "gray"}
-                    onClick={() => {
-                      if (lockPlatform) return;
-                      setPlatformId(String(item.id));
-                      if (item.vendor) setVendorId(String(item.vendor.id));
-                    }}
-                  >
-                    {item.name}
-                  </Badge>
-                ))}
-              </>
-            )
+            ? filteredPlatforms.map((item) => (
+                <Badge
+                  key={item.id}
+                  style={badgeStyle}
+                  variant={platformId === String(item.id) ? "filled" : "light"}
+                  color={platformId === String(item.id) ? "blue" : "gray"}
+                  onClick={() => {
+                    if (lockPlatform) return;
+                    setPlatformId(String(item.id));
+                    if (item.vendor) setVendorId(String(item.vendor.id));
+                  }}
+                >
+                  {item.name}
+                </Badge>
+              ))
             : null}
         </Group>
       </Stack>

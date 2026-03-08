@@ -377,9 +377,13 @@ export const FixedPlatformPreviewModal = ({
     let matched = platforms;
     if (editorHostTypeId) {
       const selectedHostTypeId = Number(editorHostTypeId);
-      matched = platforms.filter((platform) =>
-        (platform.hostTypeLinks ?? []).some((link) => link.hostTypeId === selectedHostTypeId)
-      );
+      const selectedHostType = hostTypes.find((hostType) => hostType.id === selectedHostTypeId);
+      matched =
+        selectedHostType && selectedHostType.name === "共通"
+          ? platforms
+          : platforms.filter((platform) =>
+              (platform.hostTypeLinks ?? []).some((link) => link.hostTypeId === selectedHostTypeId)
+            );
     } else if (editorCategoryId) {
       const selectedCategoryId = Number(editorCategoryId);
       const selectableHostTypeIds = new Set(
@@ -895,9 +899,10 @@ export const FixedPlatformPreviewModal = ({
           initialContext={{
             hostTypeId: hostTypeId || (commonHostTypeId ? String(commonHostTypeId) : ""),
             platformId,
-            scopeMode: "common",
+            scopeMode: "platform",
             tags: []
           }}
+          lockPlatform
           onCreated={() => {
             setOpenCommandCreate(false);
             fetchCommands();

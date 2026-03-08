@@ -274,7 +274,7 @@ export default function CommandsPage() {
             hostTypeId,
             platformId,
             vendorId,
-            scopeMode: scopeMode === "vendor" ? "vendor" : (platformId ? "platform" : "common"),
+            scopeMode: "platform",
             tags: selectedTagNames
           }}
           onCreated={fetchCommands}

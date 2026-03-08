@@ -155,6 +155,11 @@ export const CommandDetailModal = ({
     if (!hostTypeId && !categoryId) return sortByName(platforms);
     if (hostTypeId) {
       const selectedHostTypeId = Number(hostTypeId);
+      const selectedHostType = hostTypes.find((hostType) => hostType.id === selectedHostTypeId);
+      // 共通ホスト種別は機種を絞り込まない（既存の機種指定を保持する）
+      if (selectedHostType && isCommonPlaceholderName(selectedHostType.name)) {
+        return sortByName(platforms);
+      }
       return sortByName(platforms.filter((platform) =>
         (platform.hostTypeLinks ?? []).some((link) => link.hostTypeId === selectedHostTypeId)
       ));
@@ -285,7 +290,9 @@ export const CommandDetailModal = ({
     setSaveError(null);
     const resolvedHostTypeId =
       scopeMode === "platform"
-        ? (hostTypeId ? Number(hostTypeId) : commonHostTypeId)
+        ? (hostTypeId
+          ? Number(hostTypeId)
+          : (command.hostTypeId ?? commonHostTypeId))
         : commonHostTypeId;
     if (scopeMode === "vendor" && !vendorId) {
       setSaveError("ベンダを選択してください。");
@@ -453,7 +460,18 @@ export const CommandDetailModal = ({
               </Group>
 
               <Text size="sm" fw={600}>機種名</Text>
-              <Group gap="xs" wrap="wrap">
+              <Group
+                gap="xs"
+                wrap="wrap"
+                style={{
+                  maxHeight: 112,
+                  overflowY: "auto",
+                  alignContent: "flex-start",
+                  border: "1px solid var(--mantine-color-default-border)",
+                  borderRadius: 8,
+                  padding: 8
+                }}
+              >
                 {scopeMode === "platform"
                   ? filteredPlatforms.map((item) => (
                       <Badge

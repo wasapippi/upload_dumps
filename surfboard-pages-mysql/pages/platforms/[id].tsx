@@ -83,6 +83,10 @@ export default function PlatformDetailPage() {
     if (!editorHostTypeId && !editorCategoryId) return sortByName(platforms);
     if (editorHostTypeId) {
       const selectedHostTypeId = Number(editorHostTypeId);
+      const selectedHostType = hostTypes.find((hostType) => hostType.id === selectedHostTypeId);
+      if (selectedHostType && selectedHostType.name === "共通") {
+        return sortByName(platforms);
+      }
       return sortByName(platforms.filter((platform) =>
         (platform.hostTypeLinks ?? []).some((link) => link.hostTypeId === selectedHostTypeId)
       ));

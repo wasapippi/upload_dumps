@@ -87,6 +87,10 @@ export default function LinksPage() {
     if (!hostTypeId && !categoryId) return platforms;
     if (hostTypeId) {
       const selectedHostTypeId = Number(hostTypeId);
+      const selectedHostType = hostTypes.find((hostType) => hostType.id === selectedHostTypeId);
+      if (selectedHostType && isCommonPlaceholderName(selectedHostType.name)) {
+        return platforms;
+      }
       return platforms.filter((platform) =>
         (platform.hostTypeLinks ?? []).some((link) => link.hostTypeId === selectedHostTypeId)
       );
@@ -212,6 +216,10 @@ export default function LinksPage() {
     if (!editorHostTypeId && !editorCategoryId) return platforms;
     if (editorHostTypeId) {
       const selectedHostTypeId = Number(editorHostTypeId);
+      const selectedHostType = hostTypes.find((hostType) => hostType.id === selectedHostTypeId);
+      if (selectedHostType && isCommonPlaceholderName(selectedHostType.name)) {
+        return platforms;
+      }
       return platforms.filter((platform) =>
         (platform.hostTypeLinks ?? []).some((link) => link.hostTypeId === selectedHostTypeId)
       );
