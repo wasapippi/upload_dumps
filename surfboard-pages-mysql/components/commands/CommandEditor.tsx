@@ -172,11 +172,9 @@ export const CommandEditor = ({
     let active = true;
     const timer = setTimeout(async () => {
       const params = new URLSearchParams();
+      params.set("scope", "command");
       if (tagInput.trim()) params.set("q", tagInput.trim());
-      if (categoryId) params.set("categoryId", categoryId);
-      if (hostTypeId) params.set("hostTypeId", hostTypeId);
-      if (scopeMode === "platform" && platformId) params.set("platformId", platformId);
-      const response = await fetch(`/api/platforms/commands/tags?${params.toString()}`);
+      const response = await fetch(`/api/platforms/tags/suggest?${params.toString()}`);
       if (!response.ok || !active) return;
       setTagSuggestions(await response.json());
     }, 200);
@@ -185,7 +183,7 @@ export const CommandEditor = ({
       active = false;
       clearTimeout(timer);
     };
-  }, [categoryId, hostTypeId, platformId, scopeMode, tagInput]);
+  }, [tagInput]);
 
   const categories = useMemo(() => {
     const map = new Map<number, { id: number; name: string; groupOrderIndex?: number }>();
