@@ -895,11 +895,9 @@ export const FixedPlatformPreviewModal = ({
           initialContext={{
             hostTypeId: hostTypeId || (commonHostTypeId ? String(commonHostTypeId) : ""),
             platformId,
-            scopeMode: "platform",
+            scopeMode: "common",
             tags: []
           }}
-          lockHostType
-          lockPlatform
           onCreated={() => {
             setOpenCommandCreate(false);
             fetchCommands();

@@ -73,11 +73,6 @@ export default function PlatformDetailPage() {
     () => platforms.find((item) => item.id === platformId) ?? null,
     [platformId, platforms]
   );
-  const selectedHostType = useMemo(
-    () => hostTypes.find((item) => String(item.id) === hostTypeId) ?? null,
-    [hostTypeId, hostTypes]
-  );
-
   const selectableHostTypes = useMemo(() => {
     if (!selectedPlatform) return sortByBadgeOrder(hostTypes);
     const idSet = new Set((selectedPlatform.hostTypeLinks ?? []).map((link) => link.hostTypeId));
@@ -147,10 +142,9 @@ export default function PlatformDetailPage() {
   }, []);
 
   const fetchCommands = useCallback(async () => {
-    if (!platformId || !hostTypeId) return;
+    if (!platformId) return;
     const params = new URLSearchParams();
     params.set("platformId", String(platformId));
-    params.set("hostTypeId", hostTypeId);
     if (selectedCommandTagIds.length > 0) {
       params.set("tagIds", selectedCommandTagIds.join(","));
       params.set("tagMode", commandTagMode);
@@ -159,13 +153,12 @@ export default function PlatformDetailPage() {
     if (!res.ok) return;
     const data = await res.json();
     setCommands(Array.isArray(data) ? data : data.items ?? []);
-  }, [commandTagMode, hostTypeId, platformId, selectedCommandTagIds]);
+  }, [commandTagMode, platformId, selectedCommandTagIds]);
 
   const fetchAvailableCommandTags = useCallback(async () => {
-    if (!platformId || !hostTypeId) return;
+    if (!platformId) return;
     const params = new URLSearchParams();
     params.set("platformId", String(platformId));
-    params.set("hostTypeId", hostTypeId);
     const res = await fetch(`/api/platforms/commands/tags?${params.toString()}`);
     if (!res.ok) return;
     const tags = (await res.json()) as Tag[];
@@ -178,13 +171,12 @@ export default function PlatformDetailPage() {
       }
       return next;
     });
-  }, [hostTypeId, platformId]);
+  }, [platformId]);
 
   const fetchAvailableLinkTags = useCallback(async () => {
-    if (!platformId || !hostTypeId) return;
+    if (!platformId) return;
     const normalParams = new URLSearchParams();
     normalParams.set("platformId", String(platformId));
-    normalParams.set("hostTypeId", hostTypeId);
     const commonParams = new URLSearchParams();
     commonParams.set("platformId", String(platformId));
     commonParams.set("scope", "common");
@@ -208,13 +200,12 @@ export default function PlatformDetailPage() {
       }
       return next;
     });
-  }, [hostTypeId, platformId]);
+  }, [platformId]);
 
   const fetchLinks = useCallback(async () => {
-    if (!platformId || !hostTypeId) return;
+    if (!platformId) return;
     const normalParams = new URLSearchParams();
     normalParams.set("platformId", String(platformId));
-    normalParams.set("hostTypeId", hostTypeId);
     const commonParams = new URLSearchParams();
     commonParams.set("platformId", String(platformId));
     commonParams.set("scope", "common");
@@ -238,7 +229,7 @@ export default function PlatformDetailPage() {
     const merged = new Map<number, PlatformLink>();
     [...normalLinks, ...commonLinks].forEach((link) => merged.set(link.id, link));
     setLinks(Array.from(merged.values()));
-  }, [hostTypeId, linkHostName, linkTagMode, platformId, selectedLinkTagIds]);
+  }, [linkHostName, linkTagMode, platformId, selectedLinkTagIds]);
 
   useEffect(() => {
     fetchMasters();
@@ -323,8 +314,10 @@ export default function PlatformDetailPage() {
     setTags([]);
     setDeviceBindingMode("INCLUDE_IN_DEVICE");
     handleLinkScopeChange("platform");
-    setEditorCategoryId(selectedHostType ? String(selectedHostType.categoryId) : "");
-    setEditorHostTypeId(hostTypeId);
+    const defaultHostTypeId = selectableHostTypes.length === 1 ? String(selectableHostTypes[0].id) : "";
+    const defaultHostType = hostTypes.find((item) => String(item.id) === defaultHostTypeId) ?? null;
+    setEditorCategoryId(defaultHostType ? String(defaultHostType.categoryId) : "");
+    setEditorHostTypeId(defaultHostTypeId);
     setEditorPlatformId(String(platformId));
     setEditorPlatformIds(platformId ? [String(platformId)] : []);
     setEditorVendorId(selectedPlatform?.vendor?.id ? String(selectedPlatform.vendor.id) : "");
@@ -358,7 +351,7 @@ export default function PlatformDetailPage() {
   };
 
   const saveLink = async () => {
-    if (!platformId || !hostTypeId) return;
+    if (!platformId) return;
     if (!title.trim() || !urlTemplate.trim()) {
       setError("タイトルとURLテンプレートは必須です。");
       return;
@@ -627,17 +620,22 @@ export default function PlatformDetailPage() {
         title="コマンド新規作成"
         size="xl"
       >
+        {(() => {
+          const defaultHostTypeId = selectableHostTypes.length === 1 ? String(selectableHostTypes[0].id) : "";
+          const defaultHostType = hostTypes.find((item) => String(item.id) === defaultHostTypeId) ?? null;
+          return (
         <CommandEditor
           initialContext={{
-            categoryId: selectedHostType ? String(selectedHostType.categoryId) : "",
-            hostTypeId,
+            categoryId: defaultHostType ? String(defaultHostType.categoryId) : "",
+            hostTypeId: defaultHostTypeId,
             platformId: platformId ? String(platformId) : "",
             tags: []
           }}
-          lockHostType
           lockPlatform
           onCreated={fetchCommands}
         />
+          );
+        })()}
       </Modal>
     </Stack>
     </DefaultLayout>
