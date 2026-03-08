@@ -93,12 +93,13 @@ export const HostTypeFixedPreviewAction = ({ hostName, hostTypeId, platformName 
     <>
       <Tooltip label="機種固定プレビュー">
         <ActionIcon
-          variant="light"
-          size="lg"
+          variant="subtle"
+          color="green"
+          size="sm"
           disabled={!resolvedHostTypeId}
           onClick={() => setOpened(true)}
         >
-          <IconDeviceDesktop size={18} />
+          <IconDeviceDesktop size="1.0rem" />
         </ActionIcon>
       </Tooltip>
 
