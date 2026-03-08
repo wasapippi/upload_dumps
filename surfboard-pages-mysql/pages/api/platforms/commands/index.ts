@@ -59,6 +59,16 @@ const ensureCommandTags = async (names: string[]) => {
   return rows;
 };
 
+const resolveHostTypeIdWithCommonFallback = async (rawHostTypeId: unknown) => {
+  const parsed = Number(rawHostTypeId || 0) || null;
+  if (parsed) return parsed;
+  const rows = await query<{ id: number }>(
+    "SELECT id FROM HostType WHERE name = ? ORDER BY id ASC LIMIT 1",
+    ["共通"]
+  );
+  return rows[0]?.id ?? null;
+};
+
 const buildCommandWhere = async (req: NextApiRequest) => {
   const q = String(req.query.q || "").trim();
   const categoryId = Number(req.query.categoryId || 0) || null;
@@ -276,12 +286,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === "POST") {
     const body = req.body || {};
-    const hostTypeId = Number(body.hostTypeId || 0) || null;
+    const hostTypeId = await resolveHostTypeIdWithCommonFallback(body.hostTypeId);
     const platformId = body.platformId ? Number(body.platformId) : null;
     const vendorId = body.vendorId ? Number(body.vendorId) : null;
 
-    if (!hostTypeId || !String(body.title || "").trim() || !String(body.commandText || "").trim()) {
+    if (!String(body.title || "").trim() || !String(body.commandText || "").trim()) {
       return res.status(400).json({ error: "必須項目が不足しています。" });
+    }
+    if (!hostTypeId) {
+      return res.status(400).json({ error: "共通ホスト種別が見つかりません。" });
     }
 
     const maxRows = await query<{ maxOrder: number | null }>(

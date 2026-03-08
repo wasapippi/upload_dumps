@@ -281,14 +281,6 @@ export const CommandDetailModal = ({
       scopeMode === "platform"
         ? (hostTypeId ? Number(hostTypeId) : commonHostTypeId)
         : commonHostTypeId;
-    if (!resolvedHostTypeId) {
-      setSaveError(
-        scopeMode === "platform"
-          ? "ホスト種別を選択してください。"
-          : "共通ホスト種別が見つかりません。taxonomyで「共通」を作成してください。"
-      );
-      return;
-    }
     if (scopeMode === "vendor" && !vendorId) {
       setSaveError("ベンダを選択してください。");
       return;
@@ -301,7 +293,7 @@ export const CommandDetailModal = ({
         title,
         description,
         commandText,
-        hostTypeId: resolvedHostTypeId,
+        hostTypeId: resolvedHostTypeId ?? null,
         platformId: scopeMode === "platform" && platformId ? Number(platformId) : null,
         vendorId: scopeMode === "vendor" && vendorId ? Number(vendorId) : null,
         visibility,

@@ -32,6 +32,16 @@ const ensureTags = async (names: string[]) => {
   );
 };
 
+const resolveHostTypeIdWithCommonFallback = async (rawHostTypeId: unknown) => {
+  const parsed = Number(rawHostTypeId || 0) || null;
+  if (parsed) return parsed;
+  const rows = await query<{ id: number }>(
+    "SELECT id FROM HostType WHERE name = ? ORDER BY id ASC LIMIT 1",
+    ["共通"]
+  );
+  return rows[0]?.id ?? null;
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const actorName = resolveActorName(req);
   const id = Number(req.query.id);
@@ -80,9 +90,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await execute("UPDATE Command SET deletedAt = NOW(3), updatedAt = NOW(3), updatedBy = ? WHERE id = ?", [actorName, id]);
       return res.status(200).json({ ok: true });
     }
-    const hostTypeId = Number(body.hostTypeId || 0) || null;
-    if (!hostTypeId || !String(body.title || "").trim() || !String(body.commandText || "").trim()) {
+    const hostTypeId = await resolveHostTypeIdWithCommonFallback(body.hostTypeId);
+    if (!String(body.title || "").trim() || !String(body.commandText || "").trim()) {
       return res.status(400).json({ error: "必須項目が不足しています。" });
+    }
+    if (!hostTypeId) {
+      return res.status(400).json({ error: "共通ホスト種別が見つかりません。" });
     }
 
     const updated = await execute(

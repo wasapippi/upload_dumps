@@ -518,11 +518,6 @@ export const FixedPlatformPreviewModal = ({
       setSaveError("ベンダを選択してください。");
       return;
     }
-    if (!Number.isFinite(resolvedHostTypeId) || resolvedHostTypeId <= 0) {
-      setSaveError("共通ホスト種別が見つかりません。taxonomyで「共通」を作成してください。");
-      return;
-    }
-
     const payload = {
       title: linkTitle,
       urlTemplate,
@@ -530,7 +525,7 @@ export const FixedPlatformPreviewModal = ({
       tags: linkTags,
       platformId: linkScope === "platform" ? numericPlatformId : null,
       vendorId: linkScope === "vendor" ? numericVendorId : null,
-      hostTypeId: resolvedHostTypeId,
+      hostTypeId: Number.isFinite(resolvedHostTypeId) && resolvedHostTypeId > 0 ? resolvedHostTypeId : null,
       visibility: editingLink?.visibility ?? "PUBLIC",
       deviceBindingMode,
       updatedAt: editingLink?.updatedAt

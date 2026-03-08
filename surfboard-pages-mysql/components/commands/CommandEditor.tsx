@@ -314,7 +314,7 @@ export const CommandEditor = ({
       scopeMode === "platform"
         ? (hostTypeId ? Number(hostTypeId) : commonHostTypeId)
         : commonHostTypeId;
-    if (!title.trim() || !commandText.trim() || !resolvedHostTypeId) {
+    if (!title.trim() || !commandText.trim()) {
       setError("必須項目を入力してください。");
       setSaving(false);
       return;
@@ -339,7 +339,7 @@ export const CommandEditor = ({
       title,
       description,
       commandText,
-      hostTypeId: Number(resolvedHostTypeId),
+      hostTypeId: resolvedHostTypeId ? Number(resolvedHostTypeId) : null,
       platformId: scopeMode === "platform" && platformId ? Number(platformId) : null,
       vendorId: scopeMode === "vendor" && vendorId ? Number(vendorId) : null,
       visibility,
