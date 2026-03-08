@@ -368,6 +368,10 @@ export const FixedPlatformPreviewModal = ({
     if (!editorCategoryId) return hostTypes;
     return hostTypes.filter((item) => item.categoryId === Number(editorCategoryId));
   }, [editorCategoryId, hostTypes]);
+  const commonHostTypeId = useMemo(
+    () => hostTypes.find((item) => item.name === "共通")?.id ?? null,
+    [hostTypes]
+  );
 
   const filteredEditorPlatforms = useMemo(() => {
     let matched = platforms;
@@ -490,7 +494,7 @@ export const FixedPlatformPreviewModal = ({
     setSaveError(null);
     const currentHostType = hostTypes.find((item) => String(item.id) === hostTypeId);
     setEditorCategoryId(currentHostType ? String(currentHostType.categoryId) : "");
-    setEditorHostTypeId(hostTypeId);
+    setEditorHostTypeId(hostTypeId || (commonHostTypeId ? String(commonHostTypeId) : ""));
     setEditorPlatformId(platformId);
     setEditorVendorId(selectedPlatformVendorId ?? "");
     setOpenLinkDetail(true);
@@ -498,10 +502,9 @@ export const FixedPlatformPreviewModal = ({
 
   const saveLink = async () => {
     const numericPlatformId = Number(editorPlatformId || platformId || 0);
-    const commonHostTypeId = hostTypes.find((item) => item.name === "共通")?.id ?? null;
     const numericHostTypeId =
       linkScope === "platform"
-        ? Number(editorHostTypeId || hostTypeId || 0)
+        ? Number(editorHostTypeId || hostTypeId || commonHostTypeId || 0)
         : Number(commonHostTypeId || 0);
     const numericVendorId =
       Number(editorVendorId || editingLink?.vendorId || selectedPlatformVendorId || 0) || null;
@@ -895,7 +898,7 @@ export const FixedPlatformPreviewModal = ({
       >
         <CommandEditor
           initialContext={{
-            hostTypeId,
+            hostTypeId: hostTypeId || (commonHostTypeId ? String(commonHostTypeId) : ""),
             platformId,
             scopeMode: "platform",
             tags: []

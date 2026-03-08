@@ -314,7 +314,7 @@ export const CommandEditor = ({
 
     const resolvedHostTypeId =
       scopeMode === "platform"
-        ? (hostTypeId ? Number(hostTypeId) : null)
+        ? (hostTypeId ? Number(hostTypeId) : commonHostTypeId)
         : commonHostTypeId;
     if (!title.trim() || !commandText.trim() || !resolvedHostTypeId) {
       setError("必須項目を入力してください。");

@@ -119,8 +119,10 @@ export default function CommandsPage() {
       params.set("tagIds", selectedTagIds.join(","));
       params.set("tagMode", tagMode);
     }
-    params.set("page", String(page));
-    params.set("pageSize", String(PAGE_SIZE));
+    if (!reorderMode) {
+      params.set("page", String(page));
+      params.set("pageSize", String(PAGE_SIZE));
+    }
 
     const response = await fetch(`/api/platforms/commands?${params.toString()}`);
     if (!response.ok) return;
@@ -134,7 +136,7 @@ export default function CommandsPage() {
 
     setCommands(data.items);
     setTotal(data.total);
-  }, [categoryId, hostTypeId, page, platformId, q, scopeMode, selectedTagIds, tagMode, vendorId]);
+  }, [categoryId, hostTypeId, page, platformId, q, reorderMode, scopeMode, selectedTagIds, tagMode, vendorId]);
 
   const fetchAvailableTags = useCallback(async () => {
     const params = new URLSearchParams();

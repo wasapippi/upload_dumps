@@ -286,7 +286,7 @@ export const CommandDetailModal = ({
     setSaveError(null);
     const resolvedHostTypeId =
       scopeMode === "platform"
-        ? (hostTypeId ? Number(hostTypeId) : null)
+        ? (hostTypeId ? Number(hostTypeId) : commonHostTypeId)
         : commonHostTypeId;
     if (!resolvedHostTypeId) {
       setSaveError(

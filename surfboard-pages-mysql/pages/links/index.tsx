@@ -339,7 +339,7 @@ export default function LinksPage() {
     }
     const selectedHostTypeId =
       linkScope === "platform"
-        ? (editorHostTypeId || editingLink?.hostTypeId?.toString() || "")
+        ? (editorHostTypeId || editingLink?.hostTypeId?.toString() || String(commonHostTypeId))
         : String(commonHostTypeId ?? "");
     const selectedPlatformIds =
       linkScope === "platform"

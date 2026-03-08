@@ -16,11 +16,13 @@ import { CommandEditor } from "@/components/commands/CommandEditor";
 import { PlatformCommandTab } from "@/components/commands/PlatformCommandTab";
 import { PlatformLinksTab } from "@/components/commands/PlatformLinksTab";
 import { PlatformLinkEditorModal } from "@/components/commands/PlatformLinkEditorModal";
+import { CommandPaginationBar } from "@/components/commands/CommandPaginationBar";
 import { sortByBadgeOrder, sortByName } from "@/lib/badgeOrder";
 import { buildActorHeader } from "@/lib/actorClient";
 import DefaultLayout from "@/components/layouts/default";
 
 type Category = { id: number; name: string; groupOrderIndex: number };
+const PAGE_SIZE = 20;
 
 export default function PlatformDetailPage() {
   const sessionState = useSession();
@@ -36,6 +38,8 @@ export default function PlatformDetailPage() {
   const [linkHostName, setLinkHostName] = useState<string>(hostName);
   const [commands, setCommands] = useState<Command[]>([]);
   const [links, setLinks] = useState<PlatformLink[]>([]);
+  const [commandPage, setCommandPage] = useState(1);
+  const [linkPage, setLinkPage] = useState(1);
   const [availableCommandTags, setAvailableCommandTags] = useState<Tag[]>([]);
   const [selectedCommandTagIds, setSelectedCommandTagIds] = useState<number[]>([]);
   const [commandTagMode, setCommandTagMode] = useState<"and" | "or">("and");
@@ -263,6 +267,28 @@ export default function PlatformDetailPage() {
       prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId]
     );
   };
+  const commandTotalPages = Math.max(1, Math.ceil(commands.length / PAGE_SIZE));
+  const linkTotalPages = Math.max(1, Math.ceil(links.length / PAGE_SIZE));
+  const pagedCommands = useMemo(() => {
+    const start = Math.max(0, (commandPage - 1) * PAGE_SIZE);
+    return commands.slice(start, start + PAGE_SIZE);
+  }, [commandPage, commands]);
+  const pagedLinks = useMemo(() => {
+    const start = Math.max(0, (linkPage - 1) * PAGE_SIZE);
+    return links.slice(start, start + PAGE_SIZE);
+  }, [linkPage, links]);
+  useEffect(() => {
+    setCommandPage(1);
+  }, [hostTypeId, selectedCommandTagIds, commandTagMode]);
+  useEffect(() => {
+    setLinkPage(1);
+  }, [hostTypeId, selectedLinkTagIds, linkTagMode, linkHostName]);
+  useEffect(() => {
+    if (commandPage > commandTotalPages) setCommandPage(commandTotalPages);
+  }, [commandPage, commandTotalPages]);
+  useEffect(() => {
+    if (linkPage > linkTotalPages) setLinkPage(linkTotalPages);
+  }, [linkPage, linkTotalPages]);
   const handleEditorCategoryChange = (value: string) => {
     setEditorCategoryId(value);
     setEditorHostTypeId("");
@@ -340,7 +366,7 @@ export default function PlatformDetailPage() {
     const commonHostTypeId = hostTypes.find((item) => item.name === "共通")?.id ?? null;
     const selectedHostTypeId =
       linkScope === "platform"
-        ? Number(editorHostTypeId || hostTypeId || 0)
+        ? Number(editorHostTypeId || hostTypeId || commonHostTypeId || 0)
         : Number(commonHostTypeId || 0);
     const selectedVendorId = Number(editorVendorId || selectedPlatform?.vendor?.id || 0) || null;
     if (!selectedHostTypeId) {
@@ -497,6 +523,16 @@ export default function PlatformDetailPage() {
         </Tabs.List>
 
         <Tabs.Panel value="commands" pt="sm">
+          <CommandPaginationBar
+            total={commands.length}
+            page={commandPage}
+            totalPages={commandTotalPages}
+            onPrev={() => setCommandPage((prev) => Math.max(prev - 1, 1))}
+            onNext={() => setCommandPage((prev) => Math.min(prev + 1, commandTotalPages))}
+            onCopyAll={() => {}}
+            copyDisabled
+            showCopy={false}
+          />
           <PlatformCommandTab
             commandReorderMode={commandReorderMode}
             onToggleReorderMode={() => setCommandReorderMode((prev) => !prev)}
@@ -506,12 +542,22 @@ export default function PlatformDetailPage() {
             availableCommandTags={availableCommandTags}
             selectedCommandTagIds={selectedCommandTagIds}
             onToggleCommandTag={toggleCommandTag}
-            commands={commands}
+            commands={pagedCommands}
             onRefresh={fetchCommands}
           />
         </Tabs.Panel>
 
         <Tabs.Panel value="links" pt="sm" style={{ width: "100%", minWidth: 0, maxWidth: "100%", overflowX: "hidden" }}>
+          <CommandPaginationBar
+            total={links.length}
+            page={linkPage}
+            totalPages={linkTotalPages}
+            onPrev={() => setLinkPage((prev) => Math.max(prev - 1, 1))}
+            onNext={() => setLinkPage((prev) => Math.min(prev + 1, linkTotalPages))}
+            onCopyAll={() => {}}
+            copyDisabled
+            showCopy={false}
+          />
           <PlatformLinksTab
             linkReorderMode={linkReorderMode}
             onToggleReorderMode={() => setLinkReorderMode((prev) => !prev)}
@@ -521,7 +567,7 @@ export default function PlatformDetailPage() {
             availableLinkTags={availableLinkTags}
             selectedLinkTagIds={selectedLinkTagIds}
             onToggleLinkTag={toggleLinkTag}
-            links={links}
+            links={pagedLinks}
             linkHostName={linkHostName}
             onLinkHostNameChange={setLinkHostName}
             onEditLink={openEditLink}
